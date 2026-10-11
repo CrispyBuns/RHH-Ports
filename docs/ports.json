@@ -2895,15 +2895,15 @@
       "min_glibc": null
     },
     "source": {
-      "screenshot_url": "https://raw.githubusercontent.com/JeodC/RHH-Ports/main/ports/released/harbourmasters/paperboat/paperboat/screenshot.png",
-      "readme_url": "https://raw.githubusercontent.com/JeodC/RHH-Ports/main/ports/released/harbourmasters/paperboat/paperboat/README.md",
-      "download_url": "https://github.com/JeodC/RHH-Ports/releases/download/ports-latest/paperboat.zip",
-      "date_updated": "2026-10-07T11:15",
+      "screenshot_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/harbourmasters/paperboat/paperboat/screenshot.png",
+      "readme_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/harbourmasters/paperboat/paperboat/README.md",
+      "download_url": "https://github.com/CrispyBuns/RHH-Ports/releases/download/ports-latest/paperboat.zip",
+      "date_updated": "2026-10-11T22:33",
       "first_seen": "2026-09-17",
-      "md5": "b15aeb02bb67966d22143454d4d14a1a",
-      "size": 11738914,
+      "md5": "0b63a5b41b2439bf6bc3b8e2a21041e8",
+      "size": 11851300,
       "lifetime_downloads": 487,
-      "last_commit": "[HM PORTS] Update launchscripts, soh build steps to accommodate 9.3.0"
+      "last_commit": "[PAPERBOAT] Update to 1.0.3"
     }
   },
   {
