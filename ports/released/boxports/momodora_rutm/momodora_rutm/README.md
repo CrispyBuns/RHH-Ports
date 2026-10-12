@@ -1,5 +1,5 @@
 ## Installation
-Download the linux version and add game files to `momodora_rutm/gamedata`.
+Download the linux version and add game files to `momodora_rutm/data`.
 
 ## Default Gameplay Controls
 | Button            | Action |

@@ -14,7 +14,7 @@
     ],
     "desc": "Unleash ravaging combos against a variety of formidable monsters and deftly dodge your way through a cursed land to seek audience with the Queen and dispel the evil that threatens all life.",
     "desc_md": null,
-    "inst": "Download the linux version and add game files to `momodora_rutm/gamedata`.",
+    "inst": "Download the linux version and add game files to `momodora_rutm/data`.",
     "inst_md": null,
     "genres": [
       "action",
