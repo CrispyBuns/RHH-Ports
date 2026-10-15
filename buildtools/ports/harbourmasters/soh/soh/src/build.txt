@@ -1,10 +1,10 @@
 set -euo pipefail
 source /root/buildtools/ports/harbourmasters/lib_build.sh
 
-# Pin the port to Arrenton's leveled-blair branch via registry.json.
-project_clone https://github.com/Arrenton/Shipwright.git
+# The registry pins this checkout to Arrenton/Shipwright:leveled-blair.
+project_clone https://github.com/Arrenton/Shipwright.git --recursive
 
-# Build SDL2 dependencies but keep the device-provided SDL2 in control at runtime.
+# Build the SDL2 dependencies required by Blair's Linux target.
 build_sdl2
 build_sdl2_net
 
@@ -16,12 +16,22 @@ build_opusfile
 build_fmt
 build_spdlog -DSPDLOG_FMT_EXTERNAL=ON
 
-# leveled-blair generates soh/soh.otr and installs extractor assets under build/assets/extractor.
+# Build Blair's own OTR generator and the OpenGLES renderer for handheld GPUs.
 project_configure_and_build GenerateSohOtr \
     -DCMAKE_PREFIX_PATH=/usr/local \
-    -DUSE_OPENGLES=1 \
-    -DBUILD_REMOTE_CONTROL=1 \
+    -DUSE_OPENGLES=ON \
+    -DBUILD_REMOTE_CONTROL=ON \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-Release} \
     -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc"
+
+# Blair's CMake install rules define the extractor bundle layout used on Linux.
+# Assemble that layout in the build tree so retrieve-products can ship it.
+EXTRACTOR="$PROJECT_BUILD_DIR/assets/extractor"
+mkdir -p "$EXTRACTOR/xmls" "$EXTRACTOR/filelists" "$EXTRACTOR/symbols"
+cp "$PROJECT_BUILD_DIR/ZAPD/ZAPD" "$EXTRACTOR/ZAPD"
+cp -r "$PROJECT_DIR/soh/assets/extractor/." "$EXTRACTOR/"
+cp -r "$PROJECT_DIR/soh/assets/xml/." "$EXTRACTOR/xmls/"
+cp -r "$PROJECT_DIR/OTRExporter/CFG/filelists/." "$EXTRACTOR/filelists/"
+cp "$PROJECT_DIR/OTRExporter/CFG/ActorList_OoTMqDbg.txt" "$PROJECT_DIR/OTRExporter/CFG/ObjectList_OoTMqDbg.txt" "$PROJECT_DIR/OTRExporter/CFG/SymbolMap_OoTMqDbg.txt" "$EXTRACTOR/symbols/"
 
 stage_libs soh/soh.elf
