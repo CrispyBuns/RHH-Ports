@@ -13,6 +13,6 @@ replace_libs
 
 # Package Blair's own extractor tool, XML, filelists, and symbol definitions.
 # This replaces the older extractor layout from HarbourMasters' release builds.
-package_build_zip assets.zip assets/extractor
+package_build_zip assets.zip assets extractor
 
 echo "Packaged Arrenton Shipwright leveled-blair OpenGLES build."
