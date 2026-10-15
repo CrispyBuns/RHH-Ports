@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../../../lib_retrieve.sh"
@@ -11,9 +11,8 @@ copy_o2r soh/soh.otr
 copy_extra gamecontrollerdb.txt
 replace_libs
 
-# Blair's CMake install layout puts ZAPD, XML definitions, filelists and
-# symbol maps in build/assets/extractor. Ship them in assets.zip for first-run
-# ROM extraction on the handheld.
-package_build_zip assets.zip assets extractor
+# Package Blair's own extractor tool, XML, filelists, and symbol definitions.
+# This replaces the older extractor layout from HarbourMasters' release builds.
+package_build_zip assets.zip assets/extractor
 
-echo "Packaging Arrenton leveled-blair SOH artifacts complete."
+echo "Packaged Arrenton Shipwright leveled-blair OpenGLES build."
