@@ -1,17 +1,11 @@
 set -euo pipefail
 source /root/buildtools/ports/harbourmasters/lib_build.sh
 
-# Project clone — fail fast on bad REPO_URL/REF.
-project_clone https://github.com/HarbourMasters/Shipwright.git
+# Pin the port to Arrenton's leveled-blair branch via registry.json.
+project_clone https://github.com/Arrenton/Shipwright.git
 
-# SDL2 from source so libzip/tinyxml2/opus/etc link against modern SDL2 at
-# build time. We do NOT ship libSDL2-2.0.so.0 — every supported device
-# already provides one, often with device-specific patches. Shipping ours
-# via LD_LIBRARY_PATH would override those patches.
+# Build SDL2 dependencies but keep the device-provided SDL2 in control at runtime.
 build_sdl2
-
-# SDL2_net is required by BUILD_REMOTE_CONTROL (anchor multiplayer). Devices
-# do NOT reliably provide libSDL2_net-2.0.so.0 so we ship our build.
 build_sdl2_net
 
 build_libzip
@@ -22,6 +16,7 @@ build_opusfile
 build_fmt
 build_spdlog -DSPDLOG_FMT_EXTERNAL=ON
 
+# leveled-blair generates soh/soh.otr and installs extractor assets under build/assets/extractor.
 project_configure_and_build GenerateSohOtr \
     -DCMAKE_PREFIX_PATH=/usr/local \
     -DUSE_OPENGLES=1 \
