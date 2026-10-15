@@ -7,9 +7,13 @@ source "$SCRIPT_DIR/../../../lib_retrieve.sh"
 retrieve_init "$1" "$2"
 
 copy_binary soh/soh.elf
-copy_o2r soh/soh.o2r
+copy_o2r soh/soh.otr
 copy_extra gamecontrollerdb.txt
 replace_libs
-package_build_zip assets.zip soh assets
 
-echo "Packaging complete."
+# Blair's CMake install layout puts ZAPD, XML definitions, filelists and
+# symbol maps in build/assets/extractor. Ship them in assets.zip for first-run
+# ROM extraction on the handheld.
+package_build_zip assets.zip assets extractor
+
+echo "Packaging Arrenton leveled-blair SOH artifacts complete."
