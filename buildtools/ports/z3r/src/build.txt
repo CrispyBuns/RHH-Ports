@@ -12,11 +12,11 @@ rm -rf "$WORK"
 git clone --depth 1 --branch main "$UPSTREAM" "$WORK"
 cd "$WORK"
 
-# Z3R's Makefile uses sdl2-config and builds the native SDL2 executable.
-# Supplying CFLAGS prevents the upstream Makefile from forcing -Werror,
-# which is useful when building with the ARM64 GCC supplied by rhh-base.
+# Build only the executable target. The default 'all' target also generates
+# zelda3_assets.dat from a copyrighted ROM, which is intentionally absent.
 make clean >/dev/null 2>&1 || true
 CFLAGS="-O2 -DNDEBUG" make -j"$(nproc)" zelda3
 
 cp zelda3 /root/build-port/zelda3
+cp zelda3.ini /root/build-port/zelda3.ini
 chmod +x /root/build-port/zelda3
