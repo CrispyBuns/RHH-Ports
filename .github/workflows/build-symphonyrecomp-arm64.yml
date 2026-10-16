@@ -1,0 +1,64 @@
+name: Build SymphonyRecomp ARM64
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - symphonyrecomp-knulli
+    paths:
+      - '.github/workflows/build-symphonyrecomp-arm64.yml'
+      - 'ports/released/symphonyrecomp/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout port repository
+        uses: actions/checkout@v4
+
+      - name: Checkout SymphonyRecomp
+        uses: actions/checkout@v4
+        with:
+          repository: BlackLabelHQ/SymphonyRecomp
+          path: SymphonyRecomp
+          submodules: recursive
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build SymphonyRecomp
+        working-directory: SymphonyRecomp
+        run: |
+          dotnet restore RecompOne.SoTN.csproj -r linux-arm64
+          dotnet publish RecompOne.SoTN.csproj \
+            -c Release \
+            -r linux-arm64 \
+            --self-contained false \
+            -p:PublishSingleFile=false \
+            -p:PublishReadyToRun=true \
+            -p:UseRidGraph=true \
+            -p:NoWarn=0162 \
+            -o ../build/symphonyrecomp
+
+      - name: Stage launcher
+        run: |
+          mkdir -p build/port/symphonyrecomp
+          cp "ports/released/symphonyrecomp/Symphony Recomp.sh" build/port/
+          cp ports/released/symphonyrecomp/gameinfo.xml build/port/
+          cp -a build/symphonyrecomp/. build/port/symphonyrecomp/
+          chmod +x "build/port/Symphony Recomp.sh"
+          chmod +x build/port/symphonyrecomp/sotn
+
+      - name: Package
+        working-directory: build/port
+        run: zip -r ../../symphonyrecomp-arm64.zip .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: symphonyrecomp-arm64
+          path: symphonyrecomp-arm64.zip
