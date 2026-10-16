@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+# Build the upstream Z3R tree natively for the ARM64 runner.
+# The original ROM is intentionally not included in CI; it is required only
+# by Z3R's asset-generation step and must be supplied by the user.
+
+UPSTREAM=https://github.com/xander-haj/Z3R.git
+WORK=/root/build-port/z3r-src
+
+rm -rf "$WORK"
+git clone --depth 1 --branch main "$UPSTREAM" "$WORK"
+cd "$WORK"
+
+# Z3R's Makefile uses sdl2-config and builds the native SDL2 executable.
+# Supplying CFLAGS prevents the upstream Makefile from forcing -Werror,
+# which is useful when building with the ARM64 GCC supplied by rhh-base.
+make clean >/dev/null 2>&1 || true
+CFLAGS="-O2 -DNDEBUG" make -j"$(nproc)" zelda3
+
+cp zelda3 /root/build-port/zelda3
+chmod +x /root/build-port/zelda3
