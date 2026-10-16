@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+
+SRCDIR=$1
+DESTDIR=$2
+
+mkdir -p "$DESTDIR"
+cp "$SRCDIR/zelda3" "$DESTDIR/zelda3"
+chmod +x "$DESTDIR/zelda3"
+
+echo "Z3R binary packaged."
