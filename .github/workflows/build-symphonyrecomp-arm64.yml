@@ -25,12 +25,33 @@ jobs:
           path: SymphonyRecomp
           submodules: recursive
 
+      # SymphonyRecomp's generated C# source is produced from the privately
+      # hosted disc source. Supply the same DISK_SOURCE_PAT used upstream.
+      - name: Checkout disc source
+        if: ${{ secrets.DISC_SOURCE_PAT != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: BlackLabelHQ/SymphonyDiscSource
+          token: ${{ secrets.DISC_SOURCE_PAT }}
+          path: SymphonyRecomp/disc
+          lfs: true
+
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Build SymphonyRecomp
+      - name: Build recompiler
+        working-directory: SymphonyRecomp
+        run: dotnet build RecompOne/RecompOne.Recompiler/RecompOne.Recompiler.csproj -c Release
+
+      - name: Generate game source
+        working-directory: SymphonyRecomp
+        run: |
+          test -d disc || { echo 'DISC_SOURCE_PAT secret is required to generate SymphonyRecomp source.'; exit 1; }
+          dotnet run --project RecompOne/RecompOne.Recompiler -c Release --no-build -- config/sotn.json
+
+      - name: Publish ARM64 build
         working-directory: SymphonyRecomp
         run: |
           dotnet restore RecompOne.SoTN.csproj -r linux-arm64
