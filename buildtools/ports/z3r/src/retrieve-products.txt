@@ -6,6 +6,7 @@ DESTDIR=$2
 
 mkdir -p "$DESTDIR"
 cp "$SRCDIR/zelda3" "$DESTDIR/zelda3"
+cp "$GITHUB_WORKSPACE/ports/released/z3r/z3r/zelda3.ini" "$DESTDIR/zelda3.ini"
 chmod +x "$DESTDIR/zelda3"
 
-echo "Z3R binary packaged."
+echo "Z3R binary and configuration packaged."
