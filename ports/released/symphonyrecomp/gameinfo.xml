@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<gamelist>
+	<game>
+		<path>./Symphony Recomp.sh</path>
+		<name>Castlevania: Symphony of the Night Recomp</name>
+		<desc>Native recompilation of Castlevania: Symphony of the Night for modern systems.</desc>
+		<image>./symphonyrecomp/cover.png</image>
+		<thumbnail>./symphonyrecomp/thumb.png</thumbnail>
+		<developer>BlackLabelHQ</developer>
+		<genre>Action RPG</genre>
+	</game>
+</gamelist>
