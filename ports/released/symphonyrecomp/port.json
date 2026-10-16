@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "name": "symphonyrecomp.zip",
+  "items": [
+    "Symphony Recomp.sh",
+    "symphonyrecomp/",
+    "gameinfo.xml"
+  ],
+  "items_opt": null,
+  "attr": {
+    "title": "Castlevania: Symphony of the Night Recomp",
+    "porter": [
+      "CrispyBuns"
+    ],
+    "desc": "Native ARM64 recompilation of Castlevania: Symphony of the Night.",
+    "inst": "Install the PortMaster package after obtaining the ARM64 game build. No original game disc files are included.",
+    "genres": [
+      "action",
+      "platformer",
+      "rpg"
+    ],
+    "image": {},
+    "rtr": false,
+    "runtime": null,
+    "reqs": [],
+    "arch": [
+      "aarch64"
+    ],
+    "desc_md": null,
+    "inst_md": null,
+    "exp": true,
+    "min_glibc": "2.38"
+  }
+}
