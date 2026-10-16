@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../../../lib_retrieve.sh"
@@ -7,9 +7,12 @@ source "$SCRIPT_DIR/../../../lib_retrieve.sh"
 retrieve_init "$1" "$2"
 
 copy_binary soh/soh.elf
-copy_o2r soh/soh.o2r
+copy_o2r soh/soh.otr
 copy_extra gamecontrollerdb.txt
 replace_libs
-package_build_zip assets.zip soh assets
 
-echo "Packaging complete."
+# Package Blair's own extractor tool, XML, filelists, and symbol definitions.
+# This replaces the older extractor layout from HarbourMasters' release builds.
+package_build_zip assets.zip assets extractor
+
+echo "Packaged Arrenton Shipwright leveled-blair OpenGLES build."

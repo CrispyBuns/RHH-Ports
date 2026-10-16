@@ -47,10 +47,10 @@
     "soh": {
       "port_dir": "buildtools/ports/harbourmasters/soh/soh",
       "target_dirs": ["ports/released/harbourmasters/soh/soh"],
-      "upstream_repo": "HarbourMasters/Shipwright",
-      "track": "release",
+      "upstream_repo": "Arrenton/Shipwright",
+      "upstream_branch": "leveled-blair",
       "commit_prefix": "SOH",
-      "artifacts": ["soh.elf", "soh.o2r", "gamecontrollerdb.txt", "libs", "assets.zip"]
+      "artifacts": ["soh.elf", "soh.otr", "gamecontrollerdb.txt", "libs", "assets.zip"]
     },
     "soh2": {
       "port_dir": "buildtools/ports/harbourmasters/soh2/soh2",
