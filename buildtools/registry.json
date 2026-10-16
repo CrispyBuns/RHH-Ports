@@ -99,6 +99,14 @@
       "track": "release",
       "commit_prefix": "PAPERBOAT",
       "artifacts": ["Paperboat", "paperboat.o2r", "gamecontrollerdb.txt", "config.yml", "assets.zip", "libs"]
+    },
+    "z3r": {
+      "port_dir": "buildtools/ports/z3r",
+      "target_dirs": ["ports/released/z3r/z3r"],
+      "upstream_repo": "xander-haj/Z3R",
+      "upstream_branch": "main",
+      "commit_prefix": "Z3R",
+      "artifacts": ["zelda3"]
     }
   },
   "runtimes": {
