@@ -9,13 +9,49 @@ concurrency:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    # Z3R is released as a native ARM64 PortMaster package.
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Install Z3R build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            git \
+            libsdl2-dev
+
+      - name: Build Z3R ARM64 binary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          UPSTREAM=https://github.com/xander-haj/Z3R.git
+          WORK="$RUNNER_TEMP/Z3R"
+
+          rm -rf "$WORK"
+          git clone --depth 1 --branch main "$UPSTREAM" "$WORK"
+          cd "$WORK"
+
+          # Build only the executable. Z3R's normal `make` target also tries
+          # to extract zelda3_assets.dat from a ROM, which must never be
+          # supplied by CI or included in the release package.
+          #
+          # OpenGL ES is selected at runtime by zelda3.ini in the package.
+          make clean >/dev/null 2>&1 || true
+          CFLAGS="-O2 -DNDEBUG" make -j"$(nproc)" zelda3
+
+          file zelda3
+          readelf -h zelda3 | grep -E 'Class:|Machine:'
+
+          install -D -m 0755 zelda3 "$GITHUB_WORKSPACE/ports/released/z3r/z3r/zelda3"
 
       - name: Validate Z3R package
         shell: bash
