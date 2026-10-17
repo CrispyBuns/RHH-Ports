@@ -1,0 +1,51 @@
+name: Release Z3R
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release-z3r
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate Z3R package
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f ports/released/z3r/Z3R.sh
+          test -f ports/released/z3r/port.json
+          test -f ports/released/z3r/z3r/zelda3
+          test -f ports/released/z3r/z3r/zelda3.ini
+          test ! -f ports/released/z3r/z3r/zelda3_assets.dat
+          test ! -f ports/released/z3r/zelda3_assets.dat
+          chmod +x ports/released/z3r/Z3R.sh ports/released/z3r/z3r/zelda3
+
+      - name: Package Z3R
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          (cd ports/released/z3r && zip -qr "$GITHUB_WORKSPACE/release/z3r.zip" .)
+          unzip -l release/z3r.zip
+
+      - name: Create or update ports-latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view ports-latest >/dev/null 2>&1; then
+            gh release create ports-latest \
+              --title "PortMaster Ports" \
+              --notes "Latest PortMaster ports built from CrispyBuns/RHH-Ports."
+          fi
+          gh release upload ports-latest release/z3r.zip --clobber
