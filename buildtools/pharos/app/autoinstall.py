@@ -21,6 +21,8 @@ DATA_DIR = Path(_DATA_DIR_STR)
 AUTOINSTALL_DIR = DATA_DIR / "autoinstall"
 INSTALL_DIR = Path(_INSTALL_DIR_STR)
 PORTS_DIR = INSTALL_DIR.parent
+CFW_NAME = os.environ.get("CFW_NAME", "").lower()
+MUOS_DIR = INSTALL_DIR.parent.parent / "ROMS/Ports"
 WINDOWS_DIR = INSTALL_DIR.parent.parent / "windows"
 
 class AutoInstaller:
@@ -44,9 +46,6 @@ class AutoInstaller:
             print(f"[ERROR] Failed to install {zip_name}: {e}")
             result = 255
         finally:
-            # Always consume the zip, success or failure. A left-behind zip is
-            # re-globbed every batch and, if corrupt, never clears. A real retry
-            # re-downloads it anyway.
             zip_path.unlink(missing_ok=True)
 
         if result == 0:
@@ -81,6 +80,29 @@ class AutoInstaller:
             print(f"[EXTRACT] Extracting {zip_name} -> {base_dir}/ (flat)")
             self._extract_preserving_ports(zf, base_dir)
             self._join_split_payloads(zf, base_dir)
+
+            # Move launchscripts for muOS
+            if is_port and CFW_NAME == "muos":
+                launch_scripts = [
+                    base_dir / member.filename
+                    for member in zf.infolist()
+                    if not member.is_dir()
+                    and member.filename.lower().endswith(".sh")
+                    and (base_dir / member.filename).is_file()
+                ]
+
+                if launch_scripts:
+                    MUOS_DIR.mkdir(parents=True, exist_ok=True)
+
+                    for source in launch_scripts:
+                        destination = MUOS_DIR / source.name
+                        if source.resolve() == destination.resolve():
+                            continue
+
+                        print(f"[MUOS] Moving launch script {source} -> {destination}")
+                        shutil.move(str(source), str(destination))
+                else:
+                    print(f"[MUOS][WARN] No .sh launch script found in {zip_name}")
 
             # Clean macOS junk
             for junk in base_dir.rglob("__MACOSX"):

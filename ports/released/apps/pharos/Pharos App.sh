@@ -41,6 +41,7 @@ export PYSDL2_DLL_PATH="/usr/lib"
 export LD_LIBRARY_PATH="${GAMEDIR}/libs:${LD_LIBRARY_PATH}"
 export controlfolder
 export DEVICE_ARCH
+export CFW_NAME
 export TMPDIR="${GAMEDIR}/tmp"
 mkdir -p "${TMPDIR}"
 
