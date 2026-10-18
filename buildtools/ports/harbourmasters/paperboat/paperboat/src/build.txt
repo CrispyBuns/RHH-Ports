@@ -1,7 +1,7 @@
 set -euo pipefail
 source /root/buildtools/ports/harbourmasters/lib_build.sh
 
-project_clone https://github.com/HarbourMasters/paperboat.git --recursive
+REF=romhack-support project_clone https://github.com/bass3l/PaperBoatX.git --recursive
 strip_upstream_cpu_option
 
 build_sdl2
