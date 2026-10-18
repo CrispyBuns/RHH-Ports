@@ -95,8 +95,8 @@
     "paperboat": {
       "port_dir": "buildtools/ports/harbourmasters/paperboat/paperboat",
       "target_dirs": ["ports/released/harbourmasters/paperboat/paperboat"],
-      "upstream_repo": "HarbourMasters/paperboat",
-      "track": "release",
+      "upstream_repo": "bass3l/PaperBoatX",
+      "upstream_branch": "romhack-support",
       "commit_prefix": "PAPERBOAT",
       "artifacts": ["Paperboat", "paperboat.o2r", "gamecontrollerdb.txt", "config.yml", "assets.zip", "libs"]
     }
