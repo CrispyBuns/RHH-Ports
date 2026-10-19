@@ -1,0 +1,28 @@
+{
+  "version": 4,
+  "name": "maternalbound-redux.zip",
+  "items": [
+    "MaternalBound Redux.sh",
+    "earthbound",
+    "gamedata"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "MaternalBound Redux (Native)",
+    "porter": ["Crispy Buns"],
+    "desc": "Native C/C++ Linux port of MaternalBound Redux for ARM64 handhelds.",
+    "desc_md": null,
+    "inst": "This port requires a user-generated gamedata/assets.pak from a compatible MaternalBound Redux setup. Place it at ports/ebredux/gamedata/assets.pak. The asset pack is not included. This is an early community port; compatibility and controls are still being validated.",
+    "inst_md": null,
+    "genres": ["role-playing"],
+    "image": null,
+    "rtr": false,
+    "exp": true,
+    "runtime": [],
+    "store": [],
+    "availability": "free",
+    "reqs": [],
+    "arch": ["aarch64"],
+    "min_glibc": null
+  }
+}
