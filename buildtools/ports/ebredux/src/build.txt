@@ -1,0 +1,34 @@
+set -euo pipefail
+
+# Keep the Companion patches and pinned native source in sync with the project.
+git clone --depth 1 https://github.com/CrispyBuns/earthbound-companion.git earthbound-companion
+python3 earthbound-companion/scripts/prepare_port_sources.py \
+  --native "$PWD/native-source" \
+  --sdl "$PWD/sdl-download"
+
+SDL_SOURCE="$PWD/sdl-download/SDL-5d249570393f7a37e037abf22cd6012a4cc56a71"
+test -f "$SDL_SOURCE/CMakeLists.txt"
+
+cmake -S "$SDL_SOURCE" -B sdl-build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=/opt/eb-sdl2 \
+  -DSDL_SHARED=OFF \
+  -DSDL_STATIC=ON \
+  -DSDL_TEST=OFF \
+  -DSDL_TESTS=OFF
+cmake --build sdl-build --parallel "$(nproc)"
+cmake --install sdl-build
+
+cmake -S native-source/port/unix -B native-build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DEB_RUNTIME_ASSETS=ON \
+  -DEB_ENABLE_VERIFY=OFF \
+  -DEB_ENABLE_AUDIO=ON \
+  -DEB_SDL2_STATIC_CONFIG_DIR=/opt/eb-sdl2/lib/cmake/SDL2
+
+cmake --build native-build --parallel "$(nproc)"
+test -x native-build/earthbound
+
+# Stage only the native executable. User-generated gamedata/assets.pak is
+# installed separately and must not be generated or committed by CI.
+install -m 0755 native-build/earthbound "$PWD/earthbound"
