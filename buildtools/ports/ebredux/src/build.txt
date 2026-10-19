@@ -8,7 +8,7 @@ test -x "$PYTHON"
 cmake --version
 
 # Keep the Companion patches and pinned native source in sync with the project.
-git clone --depth 1 https://github.com/rages4calm/earthbound-companion.git earthbound-companion
+git clone https://github.com/rages4calm/earthbound-companion.git earthbound-companion
 "$PYTHON" earthbound-companion/scripts/prepare_port_sources.py \
   --native "$PWD/native-source" \
   --sdl "$PWD/sdl-download"
@@ -32,7 +32,6 @@ cmake -S native-source/port/unix -B native-build -G Ninja \
   -DEB_RUNTIME_ASSETS=ON \
   -DEB_ENABLE_VERIFY=OFF \
   -DEB_ENABLE_AUDIO=ON \
-  -DEB_ACHIEVEMENTS_CORE_DIR="$PWD/earthbound-companion/Achievements/Core" \
   -DEB_SDL2_STATIC_CONFIG_DIR=/opt/eb-sdl2/lib/cmake/SDL2
 
 cmake --build native-build --parallel "$(nproc)"
