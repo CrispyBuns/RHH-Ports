@@ -1,8 +1,15 @@
 set -euo pipefail
 
+# Ubuntu focal's system Python is 3.8. Use the explicit Python 3.11
+# interpreter installed by this port's Dockerfile.
+PYTHON=/usr/bin/python3.11
+test -x "$PYTHON"
+"$PYTHON" --version
+cmake --version
+
 # Keep the Companion patches and pinned native source in sync with the project.
 git clone --depth 1 https://github.com/CrispyBuns/earthbound-companion.git earthbound-companion
-python3 earthbound-companion/scripts/prepare_port_sources.py \
+"$PYTHON" earthbound-companion/scripts/prepare_port_sources.py \
   --native "$PWD/native-source" \
   --sdl "$PWD/sdl-download"
 
@@ -21,6 +28,7 @@ cmake --install sdl-build
 
 cmake -S native-source/port/unix -B native-build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
+  -DPython3_EXECUTABLE="$PYTHON" \
   -DEB_RUNTIME_ASSETS=ON \
   -DEB_ENABLE_VERIFY=OFF \
   -DEB_ENABLE_AUDIO=ON \
