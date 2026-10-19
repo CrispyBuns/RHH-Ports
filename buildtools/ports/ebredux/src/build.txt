@@ -1,8 +1,8 @@
 set -euo pipefail
 
-# Ubuntu focal's system Python is 3.8. Use the explicit Python 3.11
+# Ubuntu focal's system Python is 3.8. Use the explicit Python 3.9
 # interpreter installed by this port's Dockerfile.
-PYTHON=/usr/bin/python3.11
+PYTHON=/usr/bin/python3.9
 test -x "$PYTHON"
 "$PYTHON" --version
 cmake --version
