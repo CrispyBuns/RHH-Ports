@@ -196,7 +196,7 @@
       "target_dirs": [
         "ports/released/ebredux/ebredux"
       ],
-      "upstream_repo": "CrispyBuns/earthbound-companion",
+      "upstream_repo": "rages4calm/earthbound-companion",
       "upstream_branch": "main",
       "commit_prefix": "EBREDUX",
       "artifacts": [
