@@ -3,13 +3,19 @@ FROM rhh-base
 USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Ubuntu focal ships Python 3.8 as /usr/bin/python3, but the native runtime
+# CMake project requires Python >= 3.9. Install a newer interpreter without
+# replacing Ubuntu's system Python.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates git python3 cmake ninja-build build-essential pkg-config \
-    wget curl unzip zip \
+    ca-certificates git software-properties-common python3-launchpadlib \
+    cmake ninja-build build-essential pkg-config wget curl unzip zip \
     libasound2-dev libpulse-dev libudev-dev libx11-dev libxext-dev \
     libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev libxss-dev \
     libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgles2-mesa-dev \
     libdrm-dev libgbm-dev libibus-1.0-dev libdbus-1-dev \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends python3.11 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root
