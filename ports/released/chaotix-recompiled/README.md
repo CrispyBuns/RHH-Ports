@@ -15,7 +15,7 @@ This is an experimental PortMaster-style package for the Anbernic RG35XX-H runni
 Supply your own legally obtained *Knuckles' Chaotix (Japan, USA)* ROM. The launcher expects:
 
 ```
-/roms/ports/ROM/chaotix.32x
+/roms/ports/chaotix/ROM/chaotix.32x
 ```
 
 No ROM or 32X BIOS is bundled. The program validates the ROM and stores its installed copy and saves under `ports/chaotix-recompiled/userdata/`.
