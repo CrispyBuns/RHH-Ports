@@ -11,7 +11,7 @@
     "porter": ["CrispyBuns"],
     "desc": "Native static recompilation of Knuckles' Chaotix for KNULLI.",
     "desc_md": null,
-    "inst": "You must provide your own legally obtained Knuckles' Chaotix (Japan, USA) ROM. Place it at /roms/ports/ROM/chaotix.32x. The first launch verifies and installs the ROM. No ROM or BIOS is included.",
+    "inst": "You must provide your own legally obtained Knuckles' Chaotix (Japan, USA) ROM. Place it at /roms/ports/chaotix/ROM/chaotix.32x. The first launch verifies and installs the ROM. No ROM or BIOS is included.",
     "inst_md": null,
     "genres": ["platformer"],
     "image": null,
