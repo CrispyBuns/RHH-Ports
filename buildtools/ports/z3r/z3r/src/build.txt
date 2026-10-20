@@ -1,0 +1,19 @@
+set -euo pipefail
+
+# Build SDL 2.32 for headers and link-time libraries. The resulting SDL shared
+# library is intentionally not shipped: KNULLI supplies its patched SDL2.
+git clone --depth 1 --branch release-2.32.0 https://github.com/libsdl-org/SDL.git SDL
+cmake -S SDL -B SDL/build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DSDL_SHARED=ON \
+  -DSDL_STATIC=OFF \
+  -DSDL_TEST=OFF
+cmake --build SDL/build --parallel "$(nproc)"
+cmake --install SDL/build
+
+# Build Z3R natively for the RHH ARM64 runner, using the Cortex-A53 options
+# defined in the porting Makefile. The generated game data is not built here:
+# it must be made by the player on their PC from their own ROM.
+git clone --depth 1 https://github.com/CrispyBuns/Z3R.git Z3R
+make -C Z3R --jobs="$(nproc)" rg35xx-h
+strip --strip-unneeded Z3R/zelda3
