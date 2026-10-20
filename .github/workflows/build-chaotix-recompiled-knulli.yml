@@ -1,0 +1,86 @@
+name: Build Chaotix Recompiled (KNULLI)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout RHH-Ports
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config \
+            libasound2-dev libpulse-dev libwayland-dev libx11-dev libxext-dev \
+            libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxinerama-dev \
+            libxkbcommon-dev libxss-dev libxt-dev libgl1-mesa-dev libegl1-mesa-dev \
+            libdrm-dev libgbm-dev libudev-dev libibus-1.0-dev libdbus-1-dev \
+            libfreetype-dev libharfbuzz-dev libpng-dev libjpeg-dev libwebp-dev \
+            libavif-dev libtiff-dev libbrotli-dev
+
+      - name: Checkout Chaotix Recompiled with committed generated sources
+        uses: actions/checkout@v4
+        with:
+          repository: CrispyBuns/ChaotixRecompiled
+          ref: main
+          path: ChaotixRecompiled
+
+      - name: Build SDL3
+        run: |
+          git clone --depth 1 --branch release-3.2.16 https://github.com/libsdl-org/SDL.git SDL3
+          cmake -S SDL3 -B SDL3/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF \
+            -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON
+          cmake --build SDL3/build --parallel 2
+          sudo cmake --install SDL3/build
+          sudo ldconfig
+
+      - name: Build SDL3_ttf
+        run: |
+          git clone --depth 1 --branch release-3.2.2 --recurse-submodules \
+            https://github.com/libsdl-org/SDL_ttf.git SDL3_ttf
+          cmake -S SDL3_ttf -B SDL3_ttf/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DSDLTTF_VENDORED=ON \
+            -DSDLTTF_SAMPLES=OFF -DSDLTTF_TESTS=OFF
+          cmake --build SDL3_ttf/build --parallel 2
+          sudo cmake --install SDL3_ttf/build
+          sudo ldconfig
+
+      - name: Configure and compile Chaotix
+        run: |
+          cmake -S ChaotixRecompiled -B ChaotixRecompiled/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCHAOTIX_BUILD_FRONTEND=ON \
+            -DCHAOTIX_BUILD_TESTS=OFF \
+            -DCHAOTIX_BUILD_TOOLS=OFF
+          cmake --build ChaotixRecompiled/build --target chaotix --parallel 2
+
+      - name: Package PortMaster test build
+        run: |
+          set -euo pipefail
+          mkdir -p package/ports/chaotix-recompiled/libs
+          install -m 755 ChaotixRecompiled/build/ChaotixRecompiled package/ports/chaotix-recompiled/ChaotixRecompiled
+          install -m 755 "ports/released/chaotix-recompiled/Chaotix Recompiled.sh" package/ports/"Chaotix Recompiled.sh"
+          cp "ports/released/chaotix-recompiled/chaotix-recompiled/port.json" package/ports/chaotix-recompiled/port.json
+          cp -a /usr/local/lib/libSDL3.so* /usr/local/lib/libSDL3_ttf.so* package/ports/chaotix-recompiled/libs/ 2>/dev/null || true
+          cp -a /usr/local/lib/aarch64-linux-gnu/libSDL3.so* /usr/local/lib/aarch64-linux-gnu/libSDL3_ttf.so* package/ports/chaotix-recompiled/libs/ 2>/dev/null || true
+          printf '%s\n' 'Chaotix Recompiled KNULLI test build' \
+            'Copy the included .sh file and chaotix-recompiled folder into /roms/ports/.' \
+            'Place your legally obtained Knuckles Chaotix ROM at /roms/ports/ROM/chaotix.32x.' \
+            > package/README.txt
+          cd package && zip -r ../chaotix-recompiled-knulli-aarch64.zip ports README.txt
+
+      - name: Upload test build
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaotix-recompiled-knulli-aarch64
+          path: chaotix-recompiled-knulli-aarch64.zip
+          if-no-files-found: error
+          retention-days: 14
