@@ -17,6 +17,7 @@ cmake -S SDL3 -B SDL3/build -G Ninja \
     -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON \
     -DSDL_SDL2_BACKEND=ON -DSDL_GPU=OFF -DSDL_RENDER_GPU=OFF \
     -DSDL_X11=OFF -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF \
+    -DSDL_UNIX_CONSOLE_BUILD=ON \
     -DCMAKE_INSTALL_PREFIX=/usr/local
 cmake --build SDL3/build --parallel 2
 cmake --install SDL3/build
