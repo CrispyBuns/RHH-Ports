@@ -46,12 +46,21 @@ jobs:
           submodules: recursive
           path: SDL3_ttf
 
+      - name: Checkout SDL3_image source
+        uses: actions/checkout@v4
+        with:
+          repository: libsdl-org/SDL_image
+          ref: release-3.2.4
+          submodules: recursive
+          path: SDL3_image
+
       - name: Build shared SDL3
         run: |
           cmake -S SDL3 -B SDL3/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF \
-            -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON
+            -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON \
+            -DCMAKE_INSTALL_PREFIX=/usr/local
           cmake --build SDL3/build --parallel 2
           sudo cmake --install SDL3/build
           sudo ldconfig
@@ -59,10 +68,24 @@ jobs:
       - name: Build shared SDL3_ttf
         run: |
           cmake -S SDL3_ttf -B SDL3_ttf/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release -DSDLTTF_SHARED=ON -DSDLTTF_STATIC=OFF \
-            -DSDLTTF_VENDORED=ON -DSDLTTF_SAMPLES=OFF -DSDLTTF_TESTS=OFF
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSDLTTF_SHARED=ON -DSDLTTF_STATIC=OFF \
+            -DSDLTTF_VENDORED=ON -DSDLTTF_SAMPLES=OFF -DSDLTTF_TESTS=OFF \
+            -DCMAKE_PREFIX_PATH=/usr/local
           cmake --build SDL3_ttf/build --parallel 2
           sudo cmake --install SDL3_ttf/build
+          sudo ldconfig
+
+      - name: Build shared SDL3_image
+        run: |
+          cmake -S SDL3_image -B SDL3_image/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON -DSDLIMAGE_INSTALL=ON \
+            -DSDLIMAGE_VENDORED=ON -DSDLIMAGE_AVIF=OFF \
+            -DSDLIMAGE_SAMPLES=OFF -DSDLIMAGE_TESTS=OFF \
+            -DCMAKE_PREFIX_PATH=/usr/local
+          cmake --build SDL3_image/build --parallel 2
+          sudo cmake --install SDL3_image/build
           sudo ldconfig
 
       - name: Configure and compile Chaotix with shared SDL3
@@ -71,7 +94,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCHAOTIX_BUILD_FRONTEND=ON \
             -DCHAOTIX_BUILD_TESTS=OFF \
-            -DCHAOTIX_BUILD_TOOLS=OFF
+            -DCHAOTIX_BUILD_TOOLS=OFF \
+            -DCMAKE_PREFIX_PATH=/usr/local
           cmake --build ChaotixRecompiled/build --target chaotix --parallel 2
 
       - name: Package PortMaster test build
@@ -83,16 +107,19 @@ jobs:
           install -m 755 "ports/released/chaotix-recompiled/Chaotix Recompiled.sh" package/ports/"Chaotix Recompiled.sh"
           cp "ports/released/chaotix-recompiled/chaotix-recompiled/port.json" "$package_dir/port.json"
 
-          cp -a /usr/local/lib/libSDL3.so* /usr/local/lib/libSDL3_ttf.so* "$package_dir/libs/" 2>/dev/null || true
-          if [ -d /usr/local/lib/aarch64-linux-gnu ]; then
-            cp -a /usr/local/lib/aarch64-linux-gnu/libSDL3.so* /usr/local/lib/aarch64-linux-gnu/libSDL3_ttf.so* "$package_dir/libs/" 2>/dev/null || true
-          fi
-          find "$package_dir/libs" -type f -o -type l | grep -q 'libSDL3.so' || { echo "SDL3 shared library was not packaged"; exit 1; }
-          find "$package_dir/libs" -type f -o -type l | grep -q 'libSDL3_ttf.so' || { echo "SDL3_ttf shared library was not packaged"; exit 1; }
+          find /usr/local/lib -name 'libSDL3.so*' -exec cp -a -t "$package_dir/libs" {} +
+          find /usr/local/lib -name 'libSDL3_ttf.so*' -exec cp -a -t "$package_dir/libs" {} +
+          find /usr/local/lib -name 'libSDL3_image.so*' -exec cp -a -t "$package_dir/libs" {} +
+          for library in libSDL3.so libSDL3_ttf.so libSDL3_image.so; do
+            find "$package_dir/libs" -maxdepth 1 -name "$library*" -print -quit | grep -q . || {
+              echo "$library was not packaged"
+              exit 1
+            }
+          done
 
           printf '%s\\n' 'Chaotix Recompiled KNULLI test build' \
             'Copy the included .sh file and chaotix-recompiled folder into /roms/ports/.' \
-            'Shared SDL3 and SDL3_ttf libraries are included in chaotix-recompiled/libs/.' \
+            'Shared SDL3, SDL3_ttf, and SDL3_image libraries are included in chaotix-recompiled/libs/.' \
             'Place your legally obtained Knuckles Chaotix ROM at /roms/ports/ROM/chaotix.32x.' \
             > package/README.txt
           cd package && zip -r ../chaotix-recompiled-knulli-aarch64.zip ports README.txt
