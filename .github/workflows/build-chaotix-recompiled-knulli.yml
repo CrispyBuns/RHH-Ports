@@ -42,6 +42,14 @@ jobs:
           submodules: recursive
           path: SDL3_ttf
 
+      - name: Checkout SDL3_image source
+        uses: actions/checkout@v4
+        with:
+          repository: libsdl-org/SDL_image
+          ref: release-3.2.4
+          submodules: recursive
+          path: SDL3_image
+
       - name: Build SDL3 SDL2-backend shim
         run: |
           cmake -S SDL3 -B SDL3/build -G Ninja \
@@ -64,6 +72,18 @@ jobs:
             -DCMAKE_PREFIX_PATH=/usr/local
           cmake --build SDL3_ttf/build --parallel 2
           sudo cmake --install SDL3_ttf/build
+          sudo ldconfig
+
+      - name: Build SDL3_image
+        run: |
+          cmake -S SDL3_image -B SDL3_image/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON -DSDLIMAGE_INSTALL=ON \
+            -DSDLIMAGE_VENDORED=ON -DSDLIMAGE_AVIF=OFF \
+            -DSDLIMAGE_SAMPLES=OFF -DSDLIMAGE_TESTS=OFF \
+            -DCMAKE_PREFIX_PATH=/usr/local
+          cmake --build SDL3_image/build --parallel 2
+          sudo cmake --install SDL3_image/build
           sudo ldconfig
 
       - name: Build Chaotix Recompiled
@@ -89,7 +109,7 @@ jobs:
           cp "ports/released/chaotix-recompiled/chaotix-recompiled/port.json" "$port_dir/port.json"
           install -m 755 "ports/released/chaotix-recompiled/Chaotix Recompiled.sh" "$package_dir/Chaotix Recompiled.sh"
 
-          for library in libSDL3.so.0 libSDL3_ttf.so.0; do
+          for library in libSDL3.so.0 libSDL3_ttf.so.0 libSDL3_image.so.0; do
             source="/usr/local/lib/$library"
             destination="$port_dir/libs/$library"
             if [ ! -e "$source" ]; then
