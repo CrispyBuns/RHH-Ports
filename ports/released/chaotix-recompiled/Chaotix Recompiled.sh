@@ -16,7 +16,8 @@ source "$controlfolder/control.txt"
 get_controls
 
 GAMEDIR="/$directory/ports/chaotix-recompiled"
-ROM="$GAMEDIR/ROM/chaotix.32x"
+ROMDIR="$GAMEDIR/ROM"
+ROM="$ROMDIR/chaotix.32x"
 USERDIR="$GAMEDIR/userdata"
 
 mkdir -p "$USERDIR"
@@ -32,11 +33,23 @@ fi
 
 if [ ! -f "$USERDIR/Game/chaotix.32x" ] && [ ! -f "$USERDIR/Game/Knuckles' Chaotix.32x" ]; then
   if [ ! -f "$ROM" ]; then
-    pm_show_error "ROM not found at $ROM. Place your legally obtained ROM at /roms/ports/chaotix-recompiled/ROM/chaotix.32x. No ROM is included."
-    pm_finish
-    exit 1
+    shopt -s nullglob
+    rom_candidates=("$ROMDIR"/*.32x "$ROMDIR"/*.bin)
+    shopt -u nullglob
+
+    if [ "${#rom_candidates[@]}" -eq 1 ]; then
+      ROM="${rom_candidates[0]}"
+    elif [ "${#rom_candidates[@]}" -gt 1 ]; then
+      pm_show_error "Multiple ROM files found in $ROMDIR. Keep one .32x or .bin ROM, or name the preferred file chaotix.32x."
+      pm_finish
+      exit 1
+    else
+      pm_show_error "ROM not found. Place one legally obtained .32x or .bin ROM in /roms/ports/chaotix-recompiled/ROM/. No ROM is included."
+      pm_finish
+      exit 1
+    fi
   fi
-  pm_message "Installing Knuckles' Chaotix ROM..."
+  pm_message "Installing Chaotix ROM..."
   "$GAMEDIR/ChaotixRecompiled" --user-dir "$USERDIR" --install "$ROM"
   result=$?
   if [ "$result" -ne 0 ]; then
