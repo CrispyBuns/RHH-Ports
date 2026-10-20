@@ -1,4 +1,4 @@
-name: Build Chaotix Recompiled (KNULLI)
+name: Build Chaotix Recompiled autoinstall package
 
 on:
   workflow_dispatch:
@@ -16,26 +16,22 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build git pkg-config \
-            libasound2-dev libpulse-dev libwayland-dev libx11-dev libxext-dev \
-            libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxinerama-dev \
-            libxkbcommon-dev libxss-dev libxt-dev libgl1-mesa-dev libegl1-mesa-dev \
-            libdrm-dev libgbm-dev libudev-dev libibus-1.0-dev libdbus-1-dev \
-            libfreetype-dev libharfbuzz-dev libpng-dev libjpeg-dev libwebp-dev \
-            libavif-dev libtiff-dev libbrotli-dev
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip \
+            libsdl2-dev libfreetype-dev libharfbuzz-dev libpng-dev libjpeg-dev \
+            libwebp-dev libtiff-dev libbrotli-dev
 
-      - name: Checkout Chaotix Recompiled with committed generated sources
+      - name: Checkout Chaotix Recompiled
         uses: actions/checkout@v4
         with:
           repository: CrispyBuns/ChaotixRecompiled
           ref: main
           path: ChaotixRecompiled
 
-      - name: Checkout SDL3 source
+      - name: Checkout SDL3 SDL2-backend shim
         uses: actions/checkout@v4
         with:
-          repository: libsdl-org/SDL
-          ref: release-3.2.16
+          repository: bmdhacks/SDL
+          ref: sdl2-backend
           path: SDL3
 
       - name: Checkout SDL3_ttf source
@@ -46,26 +42,20 @@ jobs:
           submodules: recursive
           path: SDL3_ttf
 
-      - name: Checkout SDL3_image source
-        uses: actions/checkout@v4
-        with:
-          repository: libsdl-org/SDL_image
-          ref: release-3.2.4
-          submodules: recursive
-          path: SDL3_image
-
-      - name: Build shared SDL3
+      - name: Build SDL3 SDL2-backend shim
         run: |
           cmake -S SDL3 -B SDL3/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF \
             -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON \
+            -DSDL_SDL2_BACKEND=ON -DSDL_GPU=OFF -DSDL_RENDER_GPU=OFF \
+            -DSDL_X11=OFF -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF \
             -DCMAKE_INSTALL_PREFIX=/usr/local
           cmake --build SDL3/build --parallel 2
           sudo cmake --install SDL3/build
           sudo ldconfig
 
-      - name: Build shared SDL3_ttf
+      - name: Build SDL3_ttf
         run: |
           cmake -S SDL3_ttf -B SDL3_ttf/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -76,58 +66,50 @@ jobs:
           sudo cmake --install SDL3_ttf/build
           sudo ldconfig
 
-      - name: Build shared SDL3_image
-        run: |
-          cmake -S SDL3_image -B SDL3_image/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=ON -DSDLIMAGE_INSTALL=ON \
-            -DSDLIMAGE_VENDORED=ON -DSDLIMAGE_AVIF=OFF \
-            -DSDLIMAGE_SAMPLES=OFF -DSDLIMAGE_TESTS=OFF \
-            -DCMAKE_PREFIX_PATH=/usr/local
-          cmake --build SDL3_image/build --parallel 2
-          sudo cmake --install SDL3_image/build
-          sudo ldconfig
-
-      - name: Configure and compile Chaotix with shared SDL3
+      - name: Build Chaotix Recompiled
         run: |
           cmake -S ChaotixRecompiled -B ChaotixRecompiled/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCHAOTIX_BUILD_FRONTEND=ON \
             -DCHAOTIX_BUILD_TESTS=OFF \
             -DCHAOTIX_BUILD_TOOLS=OFF \
+            -DCMAKE_BUILD_RPATH='$ORIGIN/libs' \
+            -DCMAKE_INSTALL_RPATH='$ORIGIN/libs' \
             -DCMAKE_PREFIX_PATH=/usr/local
           cmake --build ChaotixRecompiled/build --target chaotix --parallel 2
 
-      - name: Package PortMaster test build
+      - name: Assemble PortMaster autoinstall ZIP
         run: |
           set -euo pipefail
-          package_dir=package/ports/chaotix-recompiled
-          mkdir -p "$package_dir/libs"
-          install -m 755 ChaotixRecompiled/build/ChaotixRecompiled "$package_dir/ChaotixRecompiled"
-          install -m 755 "ports/released/chaotix-recompiled/Chaotix Recompiled.sh" package/ports/"Chaotix Recompiled.sh"
-          cp "ports/released/chaotix-recompiled/chaotix-recompiled/port.json" "$package_dir/port.json"
+          package_dir=package
+          port_dir="$package_dir/chaotix-recompiled"
+          mkdir -p "$port_dir/libs"
 
-          find /usr/local/lib -name 'libSDL3.so*' -exec cp -a -t "$package_dir/libs" {} +
-          find /usr/local/lib -name 'libSDL3_ttf.so*' -exec cp -a -t "$package_dir/libs" {} +
-          find /usr/local/lib -name 'libSDL3_image.so*' -exec cp -a -t "$package_dir/libs" {} +
-          for library in libSDL3.so libSDL3_ttf.so libSDL3_image.so; do
-            find "$package_dir/libs" -maxdepth 1 -name "$library*" -print -quit | grep -q . || {
-              echo "$library was not packaged"
+          install -m 755 ChaotixRecompiled/build/ChaotixRecompiled "$port_dir/ChaotixRecompiled"
+          cp "ports/released/chaotix-recompiled/chaotix-recompiled/port.json" "$port_dir/port.json"
+          install -m 755 "ports/released/chaotix-recompiled/Chaotix Recompiled.sh" "$package_dir/Chaotix Recompiled.sh"
+
+          for library in libSDL3.so.0 libSDL3_ttf.so.0; do
+            source="/usr/local/lib/$library"
+            destination="$port_dir/libs/$library"
+            if [ ! -e "$source" ]; then
+              echo "Missing runtime library: $source" >&2
               exit 1
-            }
+            fi
+            install -m 755 "$source" "$destination"
           done
 
-          printf '%s\\n' 'Chaotix Recompiled KNULLI test build' \
-            'Copy the included .sh file and chaotix-recompiled folder into /roms/ports/.' \
-            'Shared SDL3, SDL3_ttf, and SDL3_image libraries are included in chaotix-recompiled/libs/.' \
-            'Place your legally obtained Knuckles Chaotix ROM at /roms/ports/chaotix-recompiled/ROM/chaotix.32x.' \
-            > package/README.txt
-          cd package && zip -r ../chaotix-recompiled-knulli-aarch64.zip ports README.txt
+          if [ -f "ports/released/chaotix-recompiled/chaotix-recompiled/chaotix.gptk" ]; then
+            cp "ports/released/chaotix-recompiled/chaotix-recompiled/chaotix.gptk" "$port_dir/"
+          fi
 
-      - name: Upload test build
+          cd "$package_dir"
+          zip -r ../chaotix-recompiled.zip "Chaotix Recompiled.sh" chaotix-recompiled
+
+      - name: Upload autoinstall ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: chaotix-recompiled-knulli-aarch64
-          path: chaotix-recompiled-knulli-aarch64.zip
+          name: chaotix-recompiled-autoinstall
+          path: chaotix-recompiled.zip
           if-no-files-found: error
           retention-days: 14
