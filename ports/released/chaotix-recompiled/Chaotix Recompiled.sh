@@ -24,6 +24,9 @@ mkdir -p "$USERDIR"
 cd "$GAMEDIR" || exit 1
 export LD_LIBRARY_PATH="$GAMEDIR/libs:${LD_LIBRARY_PATH:-}"
 export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
+# KNULLI/PortMaster handhelds use the Linux KMS/DRM display backend.
+# Keep an explicitly supplied backend, but use KMSDRM by default.
+export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-kmsdrm}"
 
 if [ ! -x "$GAMEDIR/ChaotixRecompiled" ]; then
   pm_show_error "Chaotix Recompiled executable is missing. Reinstall the port."
