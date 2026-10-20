@@ -2,6 +2,9 @@ name: Build Chaotix Recompiled autoinstall package
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - chaotix-recompiled-knulli
 
 permissions:
   contents: read
