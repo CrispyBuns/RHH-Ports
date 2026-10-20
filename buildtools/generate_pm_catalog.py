@@ -5,6 +5,7 @@ so stock PortMaster can browse this repo (via docs/030_rhh.source.json)."""
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 import urllib.request
@@ -12,7 +13,7 @@ import zipfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-REPO_SLUG = "JeodC/RHH-Ports"
+REPO_SLUG = os.environ.get("GITHUB_REPOSITORY", "JeodC/RHH-Ports")
 PORTS_RELEASE_URL = f"https://github.com/{REPO_SLUG}/releases/download/ports-latest"
 RUNTIMES_RELEASE_URL = f"https://github.com/{REPO_SLUG}/releases/download/runtimes-latest"
 

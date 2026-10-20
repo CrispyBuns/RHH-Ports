@@ -201,8 +201,6 @@
       "commit_prefix": "Z3R",
       "artifacts": [
         "Z3R.sh",
-        "port.json",
-        "screenshot.jpg",
         "z3r"
       ]
     }
