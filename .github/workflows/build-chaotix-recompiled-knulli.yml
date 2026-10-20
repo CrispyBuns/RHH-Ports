@@ -62,7 +62,7 @@ jobs:
             -DSDL_SDL2_BACKEND=ON -DSDL_GPU=OFF -DSDL_RENDER_GPU=OFF \
             -DSDL_X11=OFF -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF \
             -DCMAKE_INSTALL_PREFIX=/usr/local
-          cmake --build SDL3/build --parallel 2
+          cmake --build SDL3/build --parallel 4
           sudo cmake --install SDL3/build
           sudo ldconfig
 
@@ -73,7 +73,7 @@ jobs:
             -DSDLTTF_SHARED=ON -DSDLTTF_STATIC=OFF \
             -DSDLTTF_VENDORED=ON -DSDLTTF_SAMPLES=OFF -DSDLTTF_TESTS=OFF \
             -DCMAKE_PREFIX_PATH=/usr/local
-          cmake --build SDL3_ttf/build --parallel 2
+          cmake --build SDL3_ttf/build --parallel 4
           sudo cmake --install SDL3_ttf/build
           sudo ldconfig
 
@@ -85,7 +85,7 @@ jobs:
             -DSDLIMAGE_VENDORED=ON -DSDLIMAGE_AVIF=OFF \
             -DSDLIMAGE_SAMPLES=OFF -DSDLIMAGE_TESTS=OFF \
             -DCMAKE_PREFIX_PATH=/usr/local
-          cmake --build SDL3_image/build --parallel 2
+          cmake --build SDL3_image/build --parallel 4
           sudo cmake --install SDL3_image/build
           sudo ldconfig
 
@@ -99,7 +99,7 @@ jobs:
             -DCMAKE_BUILD_RPATH='$ORIGIN/libs' \
             -DCMAKE_INSTALL_RPATH='$ORIGIN/libs' \
             -DCMAKE_PREFIX_PATH=/usr/local
-          cmake --build ChaotixRecompiled/build --target chaotix --parallel 2
+          cmake --build ChaotixRecompiled/build --target chaotix --parallel 4
 
       - name: Assemble PortMaster autoinstall ZIP
         run: |
