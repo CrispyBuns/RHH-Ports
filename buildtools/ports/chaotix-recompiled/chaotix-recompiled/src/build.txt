@@ -7,24 +7,13 @@ git clone --depth 1 --branch main https://github.com/CrispyBuns/ChaotixRecompile
 git clone --depth 1 --branch release-3.2.16 https://github.com/libsdl-org/SDL.git SDL3
 git clone --depth 1 --branch release-3.2.2 --recurse-submodules https://github.com/libsdl-org/SDL_ttf.git SDL3_ttf
 
-cmake -S SDL3 -B SDL3/build -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DSDL_SHARED=OFF -DSDL_STATIC=ON \
-    -DSDL_TEST=OFF -DSDL_EXAMPLES=OFF -DSDL_INSTALL=OFF
-cmake --build SDL3/build --parallel 2
-
-cmake -S SDL3_ttf -B SDL3_ttf/build -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DSDLTTF_VENDORED=ON -DSDLTTF_SHARED=OFF -DSDLTTF_STATIC=ON \
-    -DSDLTTF_SAMPLES=OFF -DSDLTTF_TESTS=OFF \
-    -DSDL3_DIR="$PWD/SDL3/build"
-cmake --build SDL3_ttf/build --parallel 2
-
 cmake -S ChaotixRecompiled -B ChaotixRecompiled/build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCHAOTIX_BUILD_FRONTEND=ON \
     -DCHAOTIX_BUILD_TESTS=OFF \
     -DCHAOTIX_BUILD_TOOLS=OFF \
+    -DSDL_SHARED=OFF -DSDL_STATIC=ON \
+    -DSDLTTF_SHARED=OFF -DSDLTTF_STATIC=ON \
     -DCHAOTIX_SDL3_SOURCE_DIR="$PWD/SDL3" \
     -DCHAOTIX_SDL3_TTF_SOURCE_DIR="$PWD/SDL3_ttf"
 cmake --build ChaotixRecompiled/build --target chaotix --parallel 2
