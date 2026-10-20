@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout RHH-Ports
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Install build dependencies
         run: |
@@ -24,21 +24,21 @@ jobs:
             libwebp-dev libtiff-dev libbrotli-dev
 
       - name: Checkout Chaotix Recompiled
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         with:
           repository: CrispyBuns/ChaotixRecompiled
           ref: main
           path: ChaotixRecompiled
 
       - name: Checkout SDL3 SDL2-backend shim
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         with:
           repository: bmdhacks/SDL
           ref: sdl2-backend
           path: SDL3
 
       - name: Checkout SDL3_ttf source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         with:
           repository: libsdl-org/SDL_ttf
           ref: release-3.2.2
@@ -46,7 +46,7 @@ jobs:
           path: SDL3_ttf
 
       - name: Checkout SDL3_image source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         with:
           repository: libsdl-org/SDL_image
           ref: release-3.2.4
@@ -131,7 +131,7 @@ jobs:
           zip -r ../chaotix-recompiled.zip "Chaotix Recompiled.sh" chaotix-recompiled
 
       - name: Upload autoinstall ZIP
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: chaotix-recompiled-autoinstall
           path: chaotix-recompiled.zip
