@@ -16,8 +16,7 @@ source "$controlfolder/control.txt"
 get_controls
 
 GAMEDIR="/$directory/ports/chaotix-recompiled"
-ROMDIR="/$directory/ports/chaotix/ROM"
-ROM="$ROMDIR/chaotix.32x"
+ROM="$GAMEDIR/ROM/chaotix.32x"
 USERDIR="$GAMEDIR/userdata"
 
 mkdir -p "$USERDIR"
@@ -33,7 +32,7 @@ fi
 
 if [ ! -f "$USERDIR/Game/chaotix.32x" ] && [ ! -f "$USERDIR/Game/Knuckles' Chaotix.32x" ]; then
   if [ ! -f "$ROM" ]; then
-    pm_show_error "Place your legally obtained ROM at /roms/ports/chaotix/ROM/chaotix.32x, then launch this port again. No ROM is included."
+    pm_show_error "ROM not found at $ROM. Place your legally obtained ROM at /roms/ports/chaotix-recompiled/ROM/chaotix.32x. No ROM is included."
     pm_finish
     exit 1
   fi
