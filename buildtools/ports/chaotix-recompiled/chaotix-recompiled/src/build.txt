@@ -45,13 +45,26 @@ cmake -S ChaotixRecompiled -B project/build -G Ninja \
     -DCHAOTIX_BUILD_FRONTEND=ON \
     -DCHAOTIX_BUILD_TESTS=OFF \
     -DCHAOTIX_BUILD_TOOLS=OFF \
+    -DCMAKE_BUILD_RPATH='$ORIGIN/libs' \
+    -DCMAKE_INSTALL_RPATH='$ORIGIN/libs' \
     -DCMAKE_PREFIX_PATH=/usr/local
 cmake --build project/build --target chaotix --parallel 2
 
 mkdir -p project/build/libs
-find /usr/local/lib -name 'libSDL3.so*' -exec cp -a -t project/build/libs {} +
-find /usr/local/lib -name 'libSDL3_ttf.so*' -exec cp -a -t project/build/libs {} +
-find /usr/local/lib -name 'libSDL3_image.so*' -exec cp -a -t project/build/libs {} +
-test -n "$(find project/build/libs -maxdepth 1 -name 'libSDL3.so*' -print -quit)"
-test -n "$(find project/build/libs -maxdepth 1 -name 'libSDL3_ttf.so*' -print -quit)"
-test -n "$(find project/build/libs -maxdepth 1 -name 'libSDL3_image.so*' -print -quit)"
+
+# Package the exact SONAME filenames the executable needs as regular files.
+# Dereference the system symlinks so SD-card filesystems and ZIP extraction do
+# not have to preserve symlink semantics.
+for library in libSDL3.so.0 libSDL3_ttf.so.0 libSDL3_image.so.0; do
+    source="/usr/local/lib/$library"
+    destination="project/build/libs/$library"
+    if [[ ! -e "$source" ]]; then
+        echo "Missing runtime library: $source" >&2
+        exit 1
+    fi
+    cp -L "$source" "$destination"
+    if [[ ! -s "$destination" || -L "$destination" ]]; then
+        echo "Runtime library was not copied as a regular file: $destination" >&2
+        exit 1
+    fi
+done
