@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../../../lib_retrieve.sh"
+
+retrieve_init "$1" "$2"
+copy_binary ChaotixRecompiled
+replace_libs
+
+echo "Chaotix Recompiled packaging complete."
