@@ -3421,15 +3421,15 @@
       "min_glibc": null
     },
     "source": {
-      "screenshot_url": "https://raw.githubusercontent.com/JeodC/RHH-Ports/main/ports/released/harbourmasters/soh/soh/screenshot.png",
-      "readme_url": "https://raw.githubusercontent.com/JeodC/RHH-Ports/main/ports/released/harbourmasters/soh/soh/README.md",
-      "download_url": "https://github.com/JeodC/RHH-Ports/releases/download/ports-latest/soh.zip",
-      "date_updated": "2026-10-07T18:01",
+      "screenshot_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/harbourmasters/soh/soh/screenshot.png",
+      "readme_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/harbourmasters/soh/soh/README.md",
+      "download_url": "https://github.com/CrispyBuns/RHH-Ports/releases/download/ports-latest/soh.zip",
+      "date_updated": "2026-10-20T19:25",
       "first_seen": "2025-11-11",
-      "md5": "91e557078a9a3ebd70f683e26cc6fe04",
-      "size": 60604770,
+      "md5": "0bf72abc3e355a749af79e0daf8152b2",
+      "size": 60631623,
       "lifetime_downloads": 489,
-      "last_commit": "[SOH] Trim files no longer needed after 9.3.0"
+      "last_commit": "[SOH] Update to 9.3.1"
     }
   },
   {
