@@ -53,7 +53,7 @@ if [ ! -f "$USERDIR/Game/chaotix.32x" ] && [ ! -f "$USERDIR/Game/Knuckles' Chaot
   "$GAMEDIR/ChaotixRecompiled" --user-dir "$USERDIR" --install "$ROM"
   result=$?
   if [ "$result" -ne 0 ]; then
-    pm_show_error "ROM installation failed. Check that the ROM is the supported Knuckles' Chaotix (Japan, USA) image. See log.txt."
+    pm_show_error "ROM installation failed. Check that it is Knuckles' Chaotix (Japan, USA) or Sonic in Chaotix Revision 2. See log.txt."
     pm_finish
     exit "$result"
   fi
