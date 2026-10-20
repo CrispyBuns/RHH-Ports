@@ -12,6 +12,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04-arm
+    env:
+      CFLAGS: "-O3 -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections"
+      CXXFLAGS: "-O3 -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections"
+      LDFLAGS: "-Wl,--gc-sections"
     steps:
       - name: Checkout RHH-Ports
         uses: actions/checkout@v7.0.1
