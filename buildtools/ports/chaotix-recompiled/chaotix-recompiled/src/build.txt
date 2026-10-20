@@ -14,6 +14,7 @@ cmake -S SDL3 -B SDL3/build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF \
     -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON \
+    -DSDL_KMSDRM=ON -DSDL_KMSDRM_SHARED=ON \
     -DCMAKE_INSTALL_PREFIX=/usr/local
 cmake --build SDL3/build --parallel 2
 cmake --install SDL3/build
