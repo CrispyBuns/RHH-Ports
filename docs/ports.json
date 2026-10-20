@@ -5853,20 +5853,20 @@
   },
   {
     "version": 4,
-    "name": "z3r.zip",
+    "name": "z3r-beta.zip",
     "items": [
-      "Z3R.sh",
-      "z3r"
+      "Z3R-Beta.sh",
+      "z3r-beta"
     ],
     "items_opt": [],
     "attr": {
-      "title": "Z3R: A Link to the Past Redux",
+      "title": "Z3R-Beta: A Link to the Past Redux",
       "porter": [
         "CrispyBuns"
       ],
-      "desc": "An ARM64 port of Z3R, a C reimplementation of A Link to the Past with widescreen, HUD, settings, and randomizer features. Requires player-generated game data.",
+      "desc": "An ARM64 RG35XXX-H / KNULLI port of Z3R-Beta, a C reimplementation of A Link to the Past with widescreen, HUD, settings, and randomizer features. Requires player-generated game data.",
       "desc_md": null,
-      "inst": "Generate zelda3_assets.dat on a PC from your own game copy with Redux dialogue enabled, then copy it into the z3r folder.",
+      "inst": "Generate zelda3_assets.dat on a PC from your own game copy with Redux dialogue enabled, then copy it into the z3r-beta folder.",
       "inst_md": null,
       "genres": [
         "adventure",
@@ -5886,15 +5886,15 @@
       "min_glibc": ""
     },
     "source": {
-      "screenshot_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/z3r/z3r/screenshot.jpg",
-      "readme_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/z3r/z3r/README.md",
-      "download_url": "https://github.com/CrispyBuns/RHH-Ports/releases/download/ports-latest/z3r.zip",
-      "date_updated": "2026-10-20T19:49",
+      "screenshot_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/z3r-beta/z3r-beta/screenshot.jpg",
+      "readme_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/z3r-beta/z3r-beta/README.md",
+      "download_url": "https://github.com/CrispyBuns/RHH-Ports/releases/download/ports-latest/z3r-beta.zip",
+      "date_updated": "2026-10-20T20:09",
       "first_seen": "2026-10-20",
-      "md5": "99212496a931b3313fa97ce2cc416157",
-      "size": 987760,
+      "md5": "30de828db5b4e46e423877950b72c27a",
+      "size": 992265,
       "lifetime_downloads": 0,
-      "last_commit": "[Z3R] Update to 681a0a3"
+      "last_commit": "[Z3R-BETA] Update to 61a197f"
     }
   },
   {
