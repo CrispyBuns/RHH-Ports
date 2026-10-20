@@ -1,13 +1,14 @@
 # Chaotix Recompiled — RG35XX-H / KNULLI
 
-This is an experimental PortMaster-style package for the Anbernic RG35XX-H running KNULLI.
+This is an experimental PortMaster-style package for the Anbernic RG35XX-H running KNULLI. It is registered in RHH-Ports' standard **Build Ports** workflow.
 
 ## Build a test package
 
-1. Open the [Build Chaotix Recompiled (KNULLI) workflow](../../actions/workflows/build-chaotix-recompiled-knulli.yml).
-2. Choose **Run workflow** on branch `chaotix-recompiled-knulli`.
-3. Download the `chaotix-recompiled-knulli-aarch64` artifact from the completed run.
-4. Extract the ZIP and copy `ports/Chaotix Recompiled.sh` and `ports/chaotix-recompiled/` to `/roms/ports/` on the SD card.
+1. Open the [Build Ports workflow](../../actions/workflows/build_ports.yml) while on branch `chaotix-recompiled-knulli`.
+2. Choose **Run workflow**.
+3. Set **Which port to consider** to `chaotix-recompiled` (not `all`).
+4. Run it and open the completed run. Download the workflow artifact if using **force-build**; otherwise the workflow syncs the build output into this branch's port payload folder.
+5. For a force-build test artifact, extract the ZIP and copy the included `Chaotix Recompiled.sh` and `chaotix-recompiled/` folder into `/roms/ports/`.
 
 ## ROM
 
@@ -21,4 +22,4 @@ No ROM or 32X BIOS is bundled. The program validates the ROM and stores its inst
 
 ## Status
 
-Early test build. The upstream project and committed generated source files are used as the build input. The build workflow does not need the ROM, but the game needs a supported ROM at runtime. Rendering performance, controller mappings, and KNULLI-specific behavior still need device testing.
+Early test build. The build recipe uses the committed generated source files from the upstream project and does not require a ROM during compilation. Rendering performance, controller mappings, and KNULLI-specific behavior still need device testing.
