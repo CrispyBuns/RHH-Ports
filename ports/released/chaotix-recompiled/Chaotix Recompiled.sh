@@ -24,9 +24,26 @@ mkdir -p "$USERDIR"
 cd "$GAMEDIR" || exit 1
 export LD_LIBRARY_PATH="$GAMEDIR/libs:${LD_LIBRARY_PATH:-}"
 export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
-# KNULLI/PortMaster handhelds use the Linux KMS/DRM display backend.
-# Keep an explicitly supplied backend, but use KMSDRM by default.
-export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-kmsdrm}"
+
+# Select the SDL3 shim drivers, passing PortMaster's patched SDL2 driver
+# choices through to the backend when the CFW provides them.
+GAME_SDL_VIDEODRIVER=""
+if [ -n "${SDL_VIDEODRIVER:-}" ]; then
+  export SDL3SHIM_SDL2_VIDEODRIVER="$SDL_VIDEODRIVER"
+  GAME_SDL_VIDEODRIVER=sdl2
+fi
+
+GAME_SDL_AUDIODRIVER=""
+if [ -n "${SDL_AUDIODRIVER:-}" ]; then
+  export SDL3SHIM_SDL2_AUDIODRIVER="$SDL_AUDIODRIVER"
+  GAME_SDL_AUDIODRIVER=sdl2
+fi
+
+run_chaotix() {
+  SDL_VIDEODRIVER="$GAME_SDL_VIDEODRIVER" \
+  SDL_AUDIODRIVER="$GAME_SDL_AUDIODRIVER" \
+    "$GAMEDIR/ChaotixRecompiled" "$@"
+}
 
 if [ ! -x "$GAMEDIR/ChaotixRecompiled" ]; then
   pm_show_error "Chaotix Recompiled executable is missing. Reinstall the port."
@@ -53,7 +70,7 @@ if [ ! -f "$USERDIR/Game/chaotix.32x" ] && [ ! -f "$USERDIR/Game/Knuckles' Chaot
     fi
   fi
   pm_message "Installing Chaotix ROM..."
-  "$GAMEDIR/ChaotixRecompiled" --user-dir "$USERDIR" --install "$ROM"
+  run_chaotix --user-dir "$USERDIR" --install "$ROM"
   result=$?
   if [ "$result" -ne 0 ]; then
     pm_show_error "ROM installation failed. Check that it is Knuckles' Chaotix (Japan, USA) or Sonic in Chaotix Revision 2. See log.txt."
@@ -64,5 +81,5 @@ fi
 
 $GPTOKEYB "ChaotixRecompiled" -c "$GAMEDIR/chaotix.gptk" &
 pm_platform_helper "$GAMEDIR/ChaotixRecompiled" > /dev/null
-"$GAMEDIR/ChaotixRecompiled" --user-dir "$USERDIR" >> "$GAMEDIR/log.txt" 2>&1
+run_chaotix --user-dir "$USERDIR" >> "$GAMEDIR/log.txt" 2>&1
 pm_finish
