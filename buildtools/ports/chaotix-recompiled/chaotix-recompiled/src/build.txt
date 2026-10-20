@@ -6,9 +6,10 @@ set -euo pipefail
 git clone --depth 1 --branch main https://github.com/CrispyBuns/ChaotixRecompiled.git ChaotixRecompiled
 git clone --depth 1 --branch release-3.2.16 https://github.com/libsdl-org/SDL.git SDL3
 git clone --depth 1 --branch release-3.2.2 --recurse-submodules https://github.com/libsdl-org/SDL_ttf.git SDL3_ttf
+git clone --depth 1 --branch release-3.2.4 --recurse-submodules https://github.com/libsdl-org/SDL_image.git SDL3_image
 
-# SDL3_ttf requires SDL3's installed CMake package (SDL3Config.cmake).
-# Build and install shared SDL3 first so find_package(SDL3) can resolve it.
+# SDL3_ttf and SDL3_image require SDL3's installed CMake package.
+# Build and install SDL3 first so find_package(SDL3) can resolve it.
 cmake -S SDL3 -B SDL3/build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF \
@@ -27,6 +28,16 @@ cmake --build SDL3_ttf/build --parallel 2
 cmake --install SDL3_ttf/build
 ldconfig
 
+cmake -S SDL3_image -B SDL3_image/build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=ON -DSDLIMAGE_INSTALL=ON \
+    -DSDLIMAGE_VENDORED=ON -DSDLIMAGE_AVIF=OFF \
+    -DSDLIMAGE_SAMPLES=OFF -DSDLIMAGE_TESTS=OFF \
+    -DCMAKE_PREFIX_PATH=/usr/local
+cmake --build SDL3_image/build --parallel 2
+cmake --install SDL3_image/build
+ldconfig
+
 cmake -S ChaotixRecompiled -B ChaotixRecompiled/build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCHAOTIX_BUILD_FRONTEND=ON \
@@ -39,5 +50,7 @@ install -D -m 755 ChaotixRecompiled/build/ChaotixRecompiled ./ChaotixRecompiled
 mkdir -p libs
 find /usr/local/lib -name 'libSDL3.so*' -exec cp -a -t libs {} +
 find /usr/local/lib -name 'libSDL3_ttf.so*' -exec cp -a -t libs {} +
+find /usr/local/lib -name 'libSDL3_image.so*' -exec cp -a -t libs {} +
 test -n "$(find libs -maxdepth 1 -name 'libSDL3.so*' -print -quit)"
 test -n "$(find libs -maxdepth 1 -name 'libSDL3_ttf.so*' -print -quit)"
+test -n "$(find libs -maxdepth 1 -name 'libSDL3_image.so*' -print -quit)"
