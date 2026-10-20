@@ -5853,6 +5853,52 @@
   },
   {
     "version": 4,
+    "name": "z3r.zip",
+    "items": [
+      "Z3R.sh",
+      "z3r"
+    ],
+    "items_opt": [],
+    "attr": {
+      "title": "Z3R: A Link to the Past Redux",
+      "porter": [
+        "CrispyBuns"
+      ],
+      "desc": "An ARM64 port of Z3R, a C reimplementation of A Link to the Past with widescreen, HUD, settings, and randomizer features. Requires player-generated game data.",
+      "desc_md": null,
+      "inst": "Generate zelda3_assets.dat on a PC from your own game copy with Redux dialogue enabled, then copy it into the z3r folder.",
+      "inst_md": null,
+      "genres": [
+        "adventure",
+        "action",
+        "rpg"
+      ],
+      "image": null,
+      "rtr": false,
+      "exp": false,
+      "runtime": [],
+      "store": [],
+      "availability": "free",
+      "reqs": [],
+      "arch": [
+        "aarch64"
+      ],
+      "min_glibc": ""
+    },
+    "source": {
+      "screenshot_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/z3r/z3r/screenshot.jpg",
+      "readme_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/z3r/z3r/README.md",
+      "download_url": "https://github.com/CrispyBuns/RHH-Ports/releases/download/ports-latest/z3r.zip",
+      "date_updated": "2026-10-20T19:49",
+      "first_seen": "2026-10-20",
+      "md5": "99212496a931b3313fa97ce2cc416157",
+      "size": 987760,
+      "lifetime_downloads": 0,
+      "last_commit": "[Z3R] Update to 681a0a3"
+    }
+  },
+  {
+    "version": 4,
     "name": "zelda2enhanced.zip",
     "items": [
       "Zelda II: Enhanced.sh",
