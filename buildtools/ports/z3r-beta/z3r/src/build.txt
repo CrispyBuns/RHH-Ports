@@ -1,0 +1,18 @@
+set -euo pipefail
+
+# Build SDL 2.32 for headers and link-time libraries. KNULLI supplies its
+# patched SDL2 shared library at runtime.
+git clone --depth 1 --branch release-2.32.0 https://github.com/libsdl-org/SDL.git SDL
+cmake -S SDL -B SDL/build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DSDL_SHARED=ON \
+  -DSDL_STATIC=OFF \
+  -DSDL_TEST=OFF
+cmake --build SDL/build --parallel "$(nproc)"
+cmake --install SDL/build
+
+# Build only the RG35XXX-H executable. Its Makefile target adds Cortex-A53
+# tuning while preserving the standard includes and SDL flags. Assets stay PC-side.
+git clone --depth 1 https://github.com/CrispyBuns/Z3R-Beta.git Z3R-Beta
+make -C Z3R-Beta --jobs="$(nproc)" rg35xxx-h
+strip --strip-unneeded Z3R-Beta/zelda3

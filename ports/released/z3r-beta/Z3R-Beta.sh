@@ -16,12 +16,12 @@ source "$controlfolder/control.txt"
 [ -f "${controlfolder}/mod_${CFW_NAME}.txt" ] && source "${controlfolder}/mod_${CFW_NAME}.txt"
 get_controls
 
-GAMEDIR="/$directory/ports/z3r"
+GAMEDIR="/$directory/ports/z3r-beta"
 cd "$GAMEDIR" || exit 1
 mkdir -p "$GAMEDIR/saves"
 
 if [ ! -f "$GAMEDIR/zelda3_assets.dat" ]; then
-  pm_message "Missing zelda3_assets.dat. Generate it on your PC from your own game copy with Redux dialogue, then copy it into ports/z3r. See README.md."
+  pm_message "Missing zelda3_assets.dat. Generate it on your PC from your own game copy with Redux dialogue, then copy it into ports/z3r-beta. See README.md."
   pm_finish
   exit 1
 fi

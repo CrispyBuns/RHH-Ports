@@ -1,0 +1,35 @@
+{
+  "version": 4,
+  "name": "z3r-beta.zip",
+  "items": [
+    "Z3R-Beta.sh",
+    "z3r-beta"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Z3R-Beta: A Link to the Past Redux",
+    "porter": [
+      "CrispyBuns"
+    ],
+    "desc": "An ARM64 RG35XXX-H / KNULLI port of Z3R-Beta, a C reimplementation of A Link to the Past with widescreen, HUD, settings, and randomizer features. Requires player-generated game data.",
+    "desc_md": null,
+    "inst": "Generate zelda3_assets.dat on a PC from your own game copy with Redux dialogue enabled, then copy it into the z3r-beta folder.",
+    "inst_md": null,
+    "genres": [
+      "adventure",
+      "action",
+      "rpg"
+    ],
+    "image": null,
+    "rtr": false,
+    "exp": false,
+    "runtime": [],
+    "store": [],
+    "availability": "free",
+    "reqs": [],
+    "arch": [
+      "aarch64"
+    ],
+    "min_glibc": ""
+  }
+}

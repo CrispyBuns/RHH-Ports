@@ -191,17 +191,17 @@
         "libs"
       ]
     },
-    "z3r": {
-      "port_dir": "buildtools/ports/z3r/z3r",
+    "z3r-beta": {
+      "port_dir": "buildtools/ports/z3r-beta/z3r-beta",
       "target_dirs": [
-        "ports/released/z3r"
+        "ports/released/z3r-beta"
       ],
-      "upstream_repo": "CrispyBuns/Z3R",
+      "upstream_repo": "CrispyBuns/Z3R-Beta",
       "upstream_branch": "main",
-      "commit_prefix": "Z3R",
+      "commit_prefix": "Z3R-BETA",
       "artifacts": [
-        "Z3R.sh",
-        "z3r"
+        "Z3R-Beta.sh",
+        "z3r-beta"
       ]
     }
   },
