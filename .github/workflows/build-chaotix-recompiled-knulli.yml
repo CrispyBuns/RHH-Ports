@@ -120,7 +120,7 @@ jobs:
           printf '%s\\n' 'Chaotix Recompiled KNULLI test build' \
             'Copy the included .sh file and chaotix-recompiled folder into /roms/ports/.' \
             'Shared SDL3, SDL3_ttf, and SDL3_image libraries are included in chaotix-recompiled/libs/.' \
-            'Place your legally obtained Knuckles Chaotix ROM at /roms/ports/ROM/chaotix.32x.' \
+            'Place your legally obtained Knuckles Chaotix ROM at /roms/ports/chaotix/ROM/chaotix.32x.' \
             > package/README.txt
           cd package && zip -r ../chaotix-recompiled-knulli-aarch64.zip ports README.txt
 
