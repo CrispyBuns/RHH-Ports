@@ -38,19 +38,20 @@ cmake --build SDL3_image/build --parallel 2
 cmake --install SDL3_image/build
 ldconfig
 
-cmake -S ChaotixRecompiled -B ChaotixRecompiled/build -G Ninja \
+# The build-port retrieval helper collects project/build/<binary> and
+# project/build/libs, so place the executable and SDL shared libraries there.
+cmake -S ChaotixRecompiled -B project/build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCHAOTIX_BUILD_FRONTEND=ON \
     -DCHAOTIX_BUILD_TESTS=OFF \
     -DCHAOTIX_BUILD_TOOLS=OFF \
     -DCMAKE_PREFIX_PATH=/usr/local
-cmake --build ChaotixRecompiled/build --target chaotix --parallel 2
+cmake --build project/build --target chaotix --parallel 2
 
-install -D -m 755 ChaotixRecompiled/build/ChaotixRecompiled ./ChaotixRecompiled
-mkdir -p libs
-find /usr/local/lib -name 'libSDL3.so*' -exec cp -a -t libs {} +
-find /usr/local/lib -name 'libSDL3_ttf.so*' -exec cp -a -t libs {} +
-find /usr/local/lib -name 'libSDL3_image.so*' -exec cp -a -t libs {} +
-test -n "$(find libs -maxdepth 1 -name 'libSDL3.so*' -print -quit)"
-test -n "$(find libs -maxdepth 1 -name 'libSDL3_ttf.so*' -print -quit)"
-test -n "$(find libs -maxdepth 1 -name 'libSDL3_image.so*' -print -quit)"
+mkdir -p project/build/libs
+find /usr/local/lib -name 'libSDL3.so*' -exec cp -a -t project/build/libs {} +
+find /usr/local/lib -name 'libSDL3_ttf.so*' -exec cp -a -t project/build/libs {} +
+find /usr/local/lib -name 'libSDL3_image.so*' -exec cp -a -t project/build/libs {} +
+test -n "$(find project/build/libs -maxdepth 1 -name 'libSDL3.so*' -print -quit)"
+test -n "$(find project/build/libs -maxdepth 1 -name 'libSDL3_ttf.so*' -print -quit)"
+test -n "$(find project/build/libs -maxdepth 1 -name 'libSDL3_image.so*' -print -quit)"
