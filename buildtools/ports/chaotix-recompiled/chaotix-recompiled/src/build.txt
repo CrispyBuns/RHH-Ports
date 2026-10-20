@@ -4,17 +4,19 @@ set -euo pipefail
 # Upstream commits its generated recompilation sources, so this build does
 # not require or download a game ROM.
 git clone --depth 1 --branch main https://github.com/CrispyBuns/ChaotixRecompiled.git ChaotixRecompiled
-git clone --depth 1 --branch release-3.2.16 https://github.com/libsdl-org/SDL.git SDL3
+# PortMaster handhelds often ship a patched SDL2 with their display backend.
+# This SDL3 fork forwards SDL3 video/audio/input to that device SDL2 runtime.
+git clone --depth 1 --branch sdl2-backend https://github.com/bmdhacks/SDL.git SDL3
 git clone --depth 1 --branch release-3.2.2 --recurse-submodules https://github.com/libsdl-org/SDL_ttf.git SDL3_ttf
-git clone --depth 1 --branch release-3.2.4 --recurse-submodules https://github.com/libsdl-org/SDL_image.git SDL3_image
 
-# SDL3_ttf and SDL3_image require SDL3's installed CMake package.
-# Build and install SDL3 first so find_package(SDL3) can resolve it.
+# Build and install the SDL3-on-SDL2 backend first so SDL3_ttf and the game
+# can resolve its SDL3 headers, shared library, and CMake package.
 cmake -S SDL3 -B SDL3/build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF \
     -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON \
-    -DSDL_KMSDRM=ON -DSDL_KMSDRM_SHARED=ON \
+    -DSDL_SDL2_BACKEND=ON -DSDL_GPU=OFF -DSDL_RENDER_GPU=OFF \
+    -DSDL_X11=OFF -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF \
     -DCMAKE_INSTALL_PREFIX=/usr/local
 cmake --build SDL3/build --parallel 2
 cmake --install SDL3/build
@@ -29,18 +31,8 @@ cmake --build SDL3_ttf/build --parallel 2
 cmake --install SDL3_ttf/build
 ldconfig
 
-cmake -S SDL3_image -B SDL3_image/build -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=ON -DSDLIMAGE_INSTALL=ON \
-    -DSDLIMAGE_VENDORED=ON -DSDLIMAGE_AVIF=OFF \
-    -DSDLIMAGE_SAMPLES=OFF -DSDLIMAGE_TESTS=OFF \
-    -DCMAKE_PREFIX_PATH=/usr/local
-cmake --build SDL3_image/build --parallel 2
-cmake --install SDL3_image/build
-ldconfig
-
 # The build-port retrieval helper collects project/build/<binary> and
-# project/build/libs, so place the executable and SDL shared libraries there.
+# project/build/libs, so place the executable and runtime libraries there.
 cmake -S ChaotixRecompiled -B project/build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCHAOTIX_BUILD_FRONTEND=ON \
@@ -54,9 +46,9 @@ cmake --build project/build --target chaotix --parallel 2
 mkdir -p project/build/libs
 
 # Package the exact SONAME filenames the executable needs as regular files.
-# Dereference the system symlinks so SD-card filesystems and ZIP extraction do
-# not have to preserve symlink semantics.
-for library in libSDL3.so.0 libSDL3_ttf.so.0 libSDL3_image.so.0; do
+# Dereference system symlinks so SD-card filesystems and ZIP extraction do not
+# need to preserve symlink semantics. SDL2 remains supplied by PortMaster.
+for library in libSDL3.so.0 libSDL3_ttf.so.0; do
     source="/usr/local/lib/$library"
     destination="project/build/libs/$library"
     if [[ ! -e "$source" ]]; then
