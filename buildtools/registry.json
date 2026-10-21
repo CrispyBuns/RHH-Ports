@@ -209,8 +209,8 @@
       "target_dirs": [
         "ports/released/phase-distorter/phase-distorter"
       ],
-      "upstream_repo": "TheRunaway5/Phase-Distorter",
-      "upstream_branch": "main",
+      "upstream_repo": "CrispyBuns/Phase-Distorter",
+      "upstream_branch": "rg35xx-h-knulli",
       "commit_prefix": "PHASE-DISTORTER",
       "artifacts": [
         "Phase-Distorter",
