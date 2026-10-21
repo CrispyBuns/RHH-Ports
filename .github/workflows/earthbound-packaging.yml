@@ -1,0 +1,43 @@
+name: Package EarthBound Autoinstall
+
+on:
+  workflow_dispatch:
+    inputs:
+      port_dir:
+        description: Port directory to package
+        type: string
+        required: true
+        default: ports/unreleased/earthbound
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate and package
+        shell: bash
+        env:
+          PORT_DIR: ${{ inputs.port_dir }}
+        run: |
+          set -euo pipefail
+          test -f "$PORT_DIR/port.json"
+          test -f "$PORT_DIR/README.md"
+          test -f "$PORT_DIR/gameinfo.xml"
+          test -d "$PORT_DIR/earthbound"
+          test -x "$PORT_DIR/earthbound/earthbound"
+          if find "$PORT_DIR" -type f \( -iname '*.sfc' -o -iname '*.smc' -o -iname '*.rom' \) -print -quit | grep -q .; then
+            echo 'ROM files must not be included in the package.' >&2
+            exit 1
+          fi
+          mkdir -p dist
+          (cd "$PORT_DIR" && zip -r "$GITHUB_WORKSPACE/dist/earthbound.zip" .)
+          unzip -t dist/earthbound.zip
+      - uses: actions/upload-artifact@v6
+        with:
+          name: earthbound-portmaster-autoinstall
+          path: dist/earthbound.zip
+          if-no-files-found: error
+          retention-days: 14
