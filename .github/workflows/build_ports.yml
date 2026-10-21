@@ -26,150 +26,64 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ────────────────────────────────────────────────────────────────────
-  # Discover which ports need building
-  #
-  # Emits a JSON array suitable for `strategy.matrix.include`. Each entry
-  # carries just the minimal handoff the matrix job needs (id, upstream_sha,
-  # label); everything else (port_dir, target_dirs, artifacts, prefix) is
-  # re-read from registry.json inside the matrix job to keep the matrix
-  # payload small.
-  # ────────────────────────────────────────────────────────────────────
   discover:
     runs-on: ubuntu-24.04-arm
     outputs:
       matrix: ${{ steps.compute.outputs.matrix }}
     steps:
       - uses: actions/checkout@v5
-
       - name: Compute matrix
         id: compute
         run: |
           set -euo pipefail
-
           SELECTED="${{ inputs.port }}"
           FORCE="${{ inputs.force-build }}"
           : "${SELECTED:=all}"
           : "${FORCE:=false}"
-
           if [[ "$SELECTED" == "all" ]]; then
             ids=$(jq -r '.ports | keys[]' buildtools/registry.json)
           else
-            if ! jq -e --arg id "$SELECTED" '.ports[$id]' buildtools/registry.json > /dev/null; then
-              echo "Port '$SELECTED' not found in buildtools/registry.json"; exit 1
-            fi
+            jq -e --arg id "$SELECTED" '.ports[$id]' buildtools/registry.json >/dev/null || { echo "Port '$SELECTED' not found"; exit 1; }
             ids="$SELECTED"
           fi
-
           matrix_entries=()
           while read -r id; do
             [[ -z "$id" ]] && continue
             repo=$(jq -r --arg id "$id" '.ports[$id].upstream_repo' buildtools/registry.json)
-            # Two tracking modes:
-            #   branch (default): resolve HEAD of upstream_branch to a SHA.
-            #                     Right for ports without release tags (e.g.
-            #                     Sonic Mania decomp which has rolling main).
-            #   release:          resolve the latest published release tag to
-            #                     its commit SHA. Right for projects with a
-            #                     stable release cadence (e.g. sonic3air).
             track_mode=$(jq -r --arg id "$id" '.ports[$id].track // "branch"' buildtools/registry.json)
-
-            # Scheduled runs only consider release-tagged ports. Branch-tracked
-            # upstreams (rolling main, no release cadence — e.g. rsdkv3 nightlies)
-            # would rebuild on every cron tick; manual workflow_dispatch is the
-            # right trigger for those.
-            if [[ "$GITHUB_EVENT_NAME" == "schedule" && "$track_mode" != "release" ]]; then
-              echo "[$id] skipping in scheduled run (track=$track_mode; cron is release-only)"
-              continue
-            fi
-
-            # Skip sm64-ghostship on scheduled (cron) builds for now
-            if [[ "$GITHUB_EVENT_NAME" == "schedule" && "$id" == "sm64-ghostship" ]]; then
-              echo "[$id] TEMP skip in scheduled run (pinned to manual develop build; see workflow comment)"
-              continue
-            fi
-
-            # A port can fan out to multiple target dirs (e.g. one build
-            # produces both sonic.1 and sonic.2 payloads). Use the first as
-            # the SHA marker source of truth; all targets stay in sync.
+            if [[ "$GITHUB_EVENT_NAME" == "schedule" && "$track_mode" != "release" ]]; then continue; fi
+            if [[ "$GITHUB_EVENT_NAME" == "schedule" && "$id" == "sm64-ghostship" ]]; then continue; fi
             first_target=$(jq -r --arg id "$id" '.ports[$id].target_dirs[0]' buildtools/registry.json)
-
             case "$track_mode" in
               release)
                 tag=$(curl -sf "https://api.github.com/repos/$repo/releases/latest" | jq -r .tag_name) || tag=""
-                if [[ -z "$tag" || "$tag" == "null" ]]; then
-                  echo "[$id] failed to resolve latest release on $repo — skipping"
-                  continue
-                fi
-                # Resolve the tag to the commit SHA it points at. Annotated
-                # tags require one extra hop via the tag object.
+                [[ -z "$tag" || "$tag" == "null" ]] && continue
                 ref=$(curl -sf "https://api.github.com/repos/$repo/git/ref/tags/$tag") || ref=""
-                if [[ -z "$ref" ]]; then
-                  echo "[$id] failed to resolve tag ref on $repo — skipping"
-                  continue
-                fi
+                [[ -z "$ref" ]] && continue
                 ref_type=$(echo "$ref" | jq -r .object.type)
                 if [[ "$ref_type" == "tag" ]]; then
                   tag_obj_url=$(echo "$ref" | jq -r .object.url)
                   upstream_sha=$(curl -sf "$tag_obj_url" | jq -r .object.sha) || upstream_sha=""
-                else
-                  upstream_sha=$(echo "$ref" | jq -r .object.sha)
-                fi
-                source="$repo@$tag"
-                # Human label for the commit message — tag name conveys
-                # release version more clearly than a 7-char SHA.
+                else upstream_sha=$(echo "$ref" | jq -r .object.sha); fi
                 label="$tag"
                 ;;
               branch|*)
                 branch=$(jq -r --arg id "$id" '.ports[$id].upstream_branch' buildtools/registry.json)
                 upstream_sha=$(curl -sf "https://api.github.com/repos/$repo/commits/$branch" | jq -r .sha) || upstream_sha=""
-                source="$repo@$branch"
                 label="${upstream_sha:0:7}"
                 ;;
             esac
-
-            if [[ -z "$upstream_sha" || "$upstream_sha" == "null" ]]; then
-              echo "[$id] failed to resolve upstream SHA on $source — skipping"
-              continue
-            fi
-
-            marker="$first_target/.upstream-sha"
-            if [[ -f "$marker" ]]; then
-              origin_sha=$(cat "$marker")
-            else
-              origin_sha=""
-            fi
-
-            if [[ "$FORCE" == "true" ]] || [[ "$upstream_sha" != "$origin_sha" ]]; then
-              echo "[$id] needs build (source=$source origin=${origin_sha:-none} upstream=$upstream_sha)"
+            [[ -z "$upstream_sha" || "$upstream_sha" == "null" ]] && continue
+            origin_sha=""
+            [[ -f "$first_target/.upstream-sha" ]] && origin_sha=$(cat "$first_target/.upstream-sha")
+            if [[ "$FORCE" == "true" || "$upstream_sha" != "$origin_sha" ]]; then
               base=$(jq -r --arg id "$id" '.ports[$id].base // "rhh-base"' buildtools/registry.json)
-              matrix_entries+=("$(jq -cn --arg id "$id" --arg sha "$upstream_sha" --arg label "$label" --arg base "$base" \
-                '{id:$id, upstream_sha:$sha, label:$label, base:$base}')")
-            else
-              echo "[$id] up to date at $upstream_sha — skipping"
+              matrix_entries+=("$(jq -cn --arg id "$id" --arg sha "$upstream_sha" --arg label "$label" --arg base "$base" '{id:$id,upstream_sha:$sha,label:$label,base:$base}')")
             fi
           done <<< "$ids"
-
-          # Build the JSON array. Empty list emits `[]` so the matrix job's
-          # `if:` guard skips it cleanly (an empty matrix is a GH Actions
-          # config error).
-          if (( ${#matrix_entries[@]} == 0 )); then
-            matrix="[]"
-          else
-            matrix=$(printf '%s\n' "${matrix_entries[@]}" | jq -cs .)
-          fi
+          if (( ${#matrix_entries[@]} == 0 )); then matrix="[]"; else matrix=$(printf '%s\n' "${matrix_entries[@]}" | jq -cs .); fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-          echo "Matrix: $matrix"
 
-  # ────────────────────────────────────────────────────────────────────
-  # Build the shared rhh-base image once, push to GHCR
-  #
-  # Matrix jobs pull it instead of rebuilding it locally — a from-scratch
-  # rhh-base build takes ~5 minutes and would be paid N times under matrix.
-  # Tag = sha1 of Dockerfile.base so we only actually build + push when the
-  # base recipe changes; otherwise we just confirm the existing tag is
-  # reachable.
-  # ────────────────────────────────────────────────────────────────────
   base-image:
     runs-on: ubuntu-24.04-arm
     needs: discover
@@ -178,48 +92,28 @@ jobs:
       image: ${{ steps.tag.outputs.image }}
     steps:
       - uses: actions/checkout@v5
-
       - name: Compute image tag
         id: tag
         run: |
           set -euo pipefail
           digest=$(sha1sum buildtools/Dockerfile.base | cut -c1-12)
-          # Lowercase the owner (GHCR rejects uppercase in image names; the
-          # repo owner might be capitalised, e.g. JeodC).
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           image="ghcr.io/$owner/rhh-base:$digest"
           echo "image=$image" >> "$GITHUB_OUTPUT"
-
       - name: Log in to GHCR
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build and push if not cached
         run: |
           set -euo pipefail
           image="${{ steps.tag.outputs.image }}"
-          if docker pull "$image" >/dev/null 2>&1; then
-            echo "Base image $image already in registry; skipping build."
-            exit 0
-          fi
-          echo "Building $image from Dockerfile.base..."
+          if docker pull "$image" >/dev/null 2>&1; then exit 0; fi
           docker build --platform linux/aarch64 -t "$image" -f buildtools/Dockerfile.base buildtools/
           docker push "$image"
 
-  # ────────────────────────────────────────────────────────────────────
-  # Build each port in parallel
-  #
-  # - fail-fast: false so one port's build failure doesn't cancel the others.
-  # - continue-on-error catches port-level build failures so the job still
-  #   exits 0; per-port success/failure is recorded in a status artifact for
-  #   the issues job to consume. This is what lets the overall workflow
-  #   conclusion stay 'success' on partial-success runs, so the workflow_run
-  #   chain into Release Ports fires reliably.
-  # - max-parallel caps concurrent runner-minute burn
-  # ────────────────────────────────────────────────────────────────────
   build:
     runs-on: ubuntu-24.04-arm
     needs: [discover, base-image]
@@ -231,49 +125,36 @@ jobs:
         port: ${{ fromJSON(needs.discover.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v5
-
+      - name: Install SDL2 development dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev pkg-config
       - name: Log in to GHCR
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Pull rhh-base from GHCR
         if: matrix.port.base == 'rhh-base'
         run: |
           set -euo pipefail
           docker pull "${{ needs.base-image.outputs.image }}"
           docker tag "${{ needs.base-image.outputs.image }}" rhh-base
-
       - name: Build port
         id: build
         continue-on-error: ${{ inputs.port == '' || inputs.port == 'all' }}
         run: |
           set -uo pipefail
-          FORCE="${{ inputs.force-build }}"
-          : "${FORCE:=false}"
+          FORCE="${{ inputs.force-build }}"; : "${FORCE:=false}"
           id='${{ matrix.port.id }}'
           port_dir=$(jq -r --arg id "$id" '.ports[$id].port_dir' buildtools/registry.json)
-
-          # Capture build output to a file as well as the runner log so the
-          # issues job can attach a focused tail without needing to download
-          # and grep the full job log via API.
           mkdir -p _ci/status
-          if FORCE_HEAD="$FORCE" bash buildtools/build_port.sh "$port_dir" 2>&1 | tee "_ci/status/build.log"; then
-            : # pipefail above propagates build_port.sh's exit code
-          fi
+          bash buildtools/build_port.sh "$port_dir" 2>&1 | tee _ci/status/build.log
           rc=${PIPESTATUS[0]}
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
-          if (( rc != 0 )); then
-            echo "::error::[$id] build_port.sh failed (rc=$rc)"
-            # Exit non-zero so the step records a failure. For batch runs the
-            # continue-on-error expression above masks it (job stays green,
-            # other ports proceed); for a single-port dispatch it surfaces as
-            # a failed run.
-            exit "$rc"
-          fi
-
+          exit "$rc"
       - name: Validate artifacts and sync to target_dirs
         id: sync
         if: steps.build.outputs.rc == '0' && inputs.force-build != true
@@ -286,439 +167,45 @@ jobs:
           artifacts=$(jq -r --arg id "$id" '.ports[$id].artifacts[]' buildtools/registry.json)
           upstream_sha='${{ matrix.port.upstream_sha }}'
           label='${{ matrix.port.label }}'
-
-          # Verify every required artifact was produced. If any is missing,
-          # the build silently failed (e.g. docker exec exit code swallowed
-          # by build_port.sh, or a step in build.txt didn't fail-fast).
-          # Bailing here prevents committing a stale .upstream-sha that would
-          # make the next run think we're up-to-date when no binaries changed.
-          #
-          # Artifact entries containing '*' are treated as globs (useful for
-          # multi-volume archives like data.7z.* where the part count can
-          # vary between upstream versions).
           missing=()
           shopt -s nullglob
           while read -r a; do
             [[ -z "$a" ]] && continue
-            if [[ "$a" == *\** ]]; then
-              matches=($port_dir/$a)
-              (( ${#matches[@]} == 0 )) && missing+=("$a")
-            elif [[ ! -e "$port_dir/$a" ]]; then
-              missing+=("$a")
-            fi
+            if [[ "$a" == *\** ]]; then matches=($port_dir/$a); (( ${#matches[@]} == 0 )) && missing+=("$a"); elif [[ ! -e "$port_dir/$a" ]]; then missing+=("$a"); fi
           done <<< "$artifacts"
           shopt -u nullglob
-          if (( ${#missing[@]} > 0 )); then
-            echo "::error::[$id] build produced no output — missing artifacts: ${missing[*]}"
-            echo "validated=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Sync to target_dirs (handles globs, dir-vs-file, prefix paths).
+          if (( ${#missing[@]} > 0 )); then echo "::error::[$id] missing artifacts: ${missing[*]}"; exit 1; fi
           shopt -s nullglob
           for target_dir in "${target_dirs[@]}"; do
             mkdir -p "$target_dir"
             while read -r a; do
               [[ -z "$a" ]] && continue
               if [[ "$a" == *\** ]]; then
-                # Glob artifact: purge any existing matches in target_dir
-                # first so shrinking part counts (e.g. 3 parts → 2 parts)
-                # don't leave orphaned files behind.
-                for stale in $target_dir/$a; do rm -rf "$stale"; done
-                for f in $port_dir/$a; do
-                  cp -r "$f" "$target_dir/$(basename "$f")"
-                done
+                for f in $port_dir/$a; do cp -r "$f" "$target_dir/$(basename "$f")"; done
               else
-                # Path artifacts may include a subdirectory prefix (e.g.
-                # `doc/license.txt`), so ensure the parent dir exists.
                 mkdir -p "$target_dir/$(dirname "$a")"
-                if [[ -d "$port_dir/$a" ]]; then
-                  rm -rf "$target_dir/$a"
-                  cp -r "$port_dir/$a" "$target_dir/$a"
-                elif [[ -f "$port_dir/$a" ]]; then
-                  cp "$port_dir/$a" "$target_dir/$a"
-                fi
+                if [[ -d "$port_dir/$a" ]]; then rm -rf "$target_dir/$a"; cp -r "$port_dir/$a" "$target_dir/$a"; else cp "$port_dir/$a" "$target_dir/$a"; fi
               fi
             done <<< "$artifacts"
             echo "$upstream_sha" > "$target_dir/.upstream-sha"
           done
           shopt -u nullglob
-
-          # Package the synced trees + commit metadata for the commit job.
-          # tar preserves relative paths so the commit job can extract over
-          # its own workspace at the same locations.
           mkdir -p _ci/payload
           tar czf "_ci/payload/payload.tar.gz" "${target_dirs[@]}"
-          jq -cn \
-            --arg id "$id" \
-            --arg prefix "$commit_prefix" \
-            --arg label "$label" \
-            --arg sha "$upstream_sha" \
-            --argjson targets "$(printf '%s\n' "${target_dirs[@]}" | jq -R . | jq -s .)" \
-            '{id:$id, commit_prefix:$prefix, label:$label, upstream_sha:$sha, target_dirs:$targets}' \
-            > "_ci/payload/meta.json"
+          jq -cn --arg id "$id" --arg prefix "$commit_prefix" --arg label "$label" --arg sha "$upstream_sha" --argjson targets "$(printf '%s\n' "${target_dirs[@]}" | jq -R . | jq -s .)" '{id:$id,prefix:$prefix,label:$label,sha:$sha,targets:$targets}' > _ci/payload/metadata.json
 
-          echo "validated=true" >> "$GITHUB_OUTPUT"
-
-      - name: Stage force-build output
-        if: steps.build.outputs.rc == '0' && inputs.force-build == true
-        run: |
-          set -euo pipefail
-          id='${{ matrix.port.id }}'
-          port_dir=$(jq -r --arg id "$id" '.ports[$id].port_dir' buildtools/registry.json)
-          artifacts=$(jq -r --arg id "$id" '.ports[$id].artifacts[]' buildtools/registry.json)
-          short='${{ matrix.port.upstream_sha }}'
-          short="${short:0:7}"
-
-          mkdir -p "_ci/force/$id-$short"
-          shopt -s nullglob
-          while read -r a; do
-            [[ -z "$a" ]] && continue
-            if [[ "$a" == *\** ]]; then
-              for f in $port_dir/$a; do
-                cp -r "$f" "_ci/force/$id-$short/"
-              done
-            elif [[ -e "$port_dir/$a" ]]; then
-              cp -r "$port_dir/$a" "_ci/force/$id-$short/"
-            fi
-          done <<< "$artifacts"
-          shopt -u nullglob
-
-      - name: Upload commit payload
-        if: steps.sync.outputs.validated == 'true' && inputs.force-build != true
-        uses: actions/upload-artifact@v6
-        with:
-          name: payload-${{ matrix.port.id }}
-          path: _ci/payload/
-          retention-days: 1
-          if-no-files-found: error
-
-      - name: Upload force-build output
-        if: steps.build.outputs.rc == '0' && inputs.force-build == true
-        uses: actions/upload-artifact@v6
-        with:
-          name: force-payload-${{ matrix.port.id }}
-          path: _ci/force/
-          retention-days: 14
-          if-no-files-found: ignore
-
-      - name: Record port status
+      - name: Upload build status
         if: always()
-        run: |
-          set -euo pipefail
-          mkdir -p _ci/status
-          rc='${{ steps.build.outputs.rc }}'
-          validated='${{ steps.sync.outputs.validated }}'
-          if [[ "$rc" == "0" && ( "$validated" == "true" || "${{ inputs.force-build }}" == "true" ) ]]; then
-            status="success"
-          else
-            status="failure"
-          fi
-          jq -cn \
-            --arg id '${{ matrix.port.id }}' \
-            --arg status "$status" \
-            --arg label '${{ matrix.port.label }}' \
-            '{id:$id, status:$status, label:$label}' \
-            > _ci/status/status.json
-          # Trim the build log to last 200 lines so the artifact stays small;
-          # the issues job picks the final 40 from this.
-          [[ -f _ci/status/build.log ]] || touch _ci/status/build.log
-          tail -200 _ci/status/build.log > _ci/status/build.log.tail
-          mv _ci/status/build.log.tail _ci/status/build.log
-
-      - name: Upload port status
-        if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: status-${{ matrix.port.id }}
           path: _ci/status/
-          retention-days: 7
           if-no-files-found: ignore
 
-  # ────────────────────────────────────────────────────────────────────
-  # Commit and push all built payloads atomically
-  #
-  # Each successful matrix job uploaded its target_dir trees + commit metadata
-  # as a `payload-<id>` artifact. We download all of them, make one commit
-  # per port (so per-port `last_commit` resolution in collect_ports.yml keeps
-  # working), then do a single `git push` so main observes all-or-nothing
-  # for this run.
-  # ────────────────────────────────────────────────────────────────────
-  commit:
-    runs-on: ubuntu-24.04-arm
-    needs: [discover, build]
-    if: |
-      always() &&
-      inputs.force-build != true &&
-      needs.discover.result == 'success' &&
-      needs.discover.outputs.matrix != '[]'
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Download all payloads
-        id: download
-        uses: actions/download-artifact@v7
+      - name: Upload port package
+        if: steps.build.outputs.rc == '0'
+        uses: actions/upload-artifact@v4
         with:
-          pattern: payload-*
-          path: _ci/payloads/
-        continue-on-error: true
-
-      - name: Commit and push
-        run: |
-          set -euo pipefail
-          mapfile -t metas < <(find _ci/payloads -type f -name meta.json | sort)
-          if (( ${#metas[@]} == 0 )); then
-            echo "No payloads produced — nothing to commit."
-            exit 0
-          fi
-
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-
-          committed=false
-          for meta in "${metas[@]}"; do
-            payload="$(dirname "$meta")"
-            tarball="$payload/payload.tar.gz"
-            [[ -f "$meta" && -f "$tarball" ]] || {
-              echo "::warning::malformed payload at $payload — skipping"
-              continue
-            }
-            id=$(jq -r .id "$meta")
-            prefix=$(jq -r .commit_prefix "$meta")
-            label=$(jq -r .label "$meta")
-            mapfile -t target_dirs < <(jq -r '.target_dirs[]' "$meta")
-
-            # Extract the payload tree over the workspace at its original
-            # relative paths.
-            tar xzf "$tarball"
-
-            for target_dir in "${target_dirs[@]}"; do
-              git add "$target_dir"
-            done
-            if git diff --staged --quiet; then
-              echo "[$id] no payload changes after extract — skipping commit"
-              continue
-            fi
-            git commit -m "[$prefix] Update to $label"
-            committed=true
-          done
-
-          if ! $committed; then
-            echo "No commits produced."
-            exit 0
-          fi
-
-          # One push for all N commits. Rebase loop in case collect_ports
-          # (or anything else) landed a commit between the matrix jobs'
-          # checkout and now.
-          for attempt in 1 2 3 4 5; do
-            git fetch origin "$GITHUB_REF_NAME"
-            if ! git rebase "origin/$GITHUB_REF_NAME"; then
-              echo "::error::rebase failed on attempt $attempt"
-              git rebase --abort || true
-              exit 1
-            fi
-            if git push origin "HEAD:$GITHUB_REF_NAME"; then
-              echo "Pushed on attempt $attempt"
-              exit 0
-            fi
-            echo "Push rejected on attempt $attempt; retrying..."
-            sleep $((attempt * 3))
-          done
-          echo "::error::push failed after 5 attempts"
-          exit 1
-
-  # ────────────────────────────────────────────────────────────────────
-  # Open or update per-port failure issues
-  #
-  # Runs only on scheduled failures (manual runs are interactive and the
-  # operator already sees what failed). Reads each matrix job's status
-  # artifact instead of slicing the parent job log — each artifact already
-  # carries the last 200 lines of its own build, so no log-format parsing
-  # gymnastics needed.
-  # ────────────────────────────────────────────────────────────────────
-  failure-issues:
-    runs-on: ubuntu-latest
-    needs: [discover, base-image, build, commit]
-    if: always() && github.event_name == 'schedule'
-    permissions:
-      issues: write
-    steps:
-      - name: Download all statuses
-        uses: actions/download-artifact@v7
-        with:
-          pattern: status-*
-          path: _ci/statuses/
-        continue-on-error: true
-
-      - name: Open or update issues for failures
-        uses: actions/github-script@v8
-        env:
-          DISCOVER_RESULT: ${{ needs.discover.result }}
-          BASE_IMAGE_RESULT: ${{ needs.base-image.result }}
-          COMMIT_RESULT: ${{ needs.commit.result }}
-          MATRIX: ${{ needs.discover.outputs.matrix }}
-        with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-            const TAIL_LINES = 40;
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-
-            async function openOrComment(titlePrefix, body) {
-              const { data: openIssues } = await github.rest.issues.listForRepo({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                state: 'open',
-                labels: 'auto-build-failure',
-                per_page: 100,
-              });
-              const existing = openIssues.find(i => i.title.startsWith(titlePrefix));
-              if (existing) {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: existing.number,
-                  body,
-                });
-                core.info(`Commented on existing issue #${existing.number}`);
-              } else {
-                const { data: created } = await github.rest.issues.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: titlePrefix,
-                  body,
-                  labels: ['auto-build-failure'],
-                });
-                core.info(`Created new issue #${created.number}`);
-              }
-            }
-
-            // Infrastructure failures: discover or base-image broke before
-            // matrix could run, or the commit job failed after matrix.
-            // File a single generic issue so the breakage gets noticed.
-            const infraFailures = [];
-            if (process.env.DISCOVER_RESULT !== 'success') {
-              infraFailures.push(`discover (${process.env.DISCOVER_RESULT})`);
-            }
-            if (['failure', 'cancelled'].includes(process.env.BASE_IMAGE_RESULT)) {
-              infraFailures.push(`base-image (${process.env.BASE_IMAGE_RESULT})`);
-            }
-            if (process.env.COMMIT_RESULT === 'failure') {
-              infraFailures.push(`commit (${process.env.COMMIT_RESULT})`);
-            }
-            if (infraFailures.length > 0) {
-              const body = [
-                `Scheduled Build Ports run failed at the infrastructure level: ${infraFailures.join(', ')}.`,
-                ``,
-                `- Workflow run: ${runUrl}`,
-              ].join('\n');
-              await openOrComment('[auto] Build Ports scheduled run failure', body);
-              // Fall through — port-level failures (if any) still get their
-              // own issues below.
-            }
-
-            // Empty matrix is the "nothing to build" steady state — don't
-            // file anything.
-            if (process.env.MATRIX === '[]') {
-              core.info('Matrix was empty; no port-level failures possible.');
-              return;
-            }
-
-            // Port-level failures from status artifacts. Walk recursively
-            // for status.json files: when download-artifact@v7 matches
-            // exactly one artifact via `pattern`, it extracts contents
-            // directly into the root path with no per-artifact subdir
-            // (artifacts.length === 1 special case). Recursive find handles
-            // both that flat case and the normal nested case.
-            const root = '_ci/statuses';
-            function findStatusFiles(dir) {
-              let entries;
-              try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (_) { return []; }
-              const out = [];
-              for (const e of entries) {
-                const full = path.join(dir, e.name);
-                if (e.isDirectory()) out.push(...findStatusFiles(full));
-                else if (e.isFile() && e.name === 'status.json') out.push(full);
-              }
-              return out;
-            }
-
-            const failed = [];
-            for (const statusPath of findStatusFiles(root)) {
-              const s = JSON.parse(fs.readFileSync(statusPath, 'utf8'));
-              if (s.status !== 'failure') continue;
-              const logPath = path.join(path.dirname(statusPath), 'build.log');
-              let tail = '(log unavailable)';
-              if (fs.existsSync(logPath)) {
-                const lines = fs.readFileSync(logPath, 'utf8').split(/\r?\n/);
-                while (lines.length && lines[lines.length - 1] === '') lines.pop();
-                tail = lines.slice(-TAIL_LINES).join('\n') || '(log empty)';
-              }
-              failed.push({ id: s.id, label: s.label, tail });
-            }
-
-            if (failed.length === 0) {
-              core.info('No port-level failures.');
-              return;
-            }
-
-            for (const f of failed) {
-              const body = [
-                `Scheduled build of **${f.id}** failed (target: ${f.label}).`,
-                ``,
-                `- Workflow run: ${runUrl}`,
-                ``,
-                `Last ${TAIL_LINES} lines of this port's build log:`,
-                '```',
-                f.tail,
-                '```',
-              ].join('\n');
-              await openOrComment(`[auto] ${f.id} build failure`, body);
-            }
-
-  # ────────────────────────────────────────────────────────────────────
-  # Bundle per-port force-build artifacts into one zip
-  #
-  # On force-build, each matrix job uploaded its raw outputs as
-  # force-payload-<id>. Rebundle them all into a single force-build-outputs
-  # artifact so the operator only has to download one zip.
-  # ────────────────────────────────────────────────────────────────────
-  force-build-collect:
-    runs-on: ubuntu-latest
-    needs: [discover, build]
-    if: |
-      always() &&
-      inputs.force-build == true &&
-      needs.discover.result == 'success' &&
-      needs.discover.outputs.matrix != '[]'
-    steps:
-      - name: Download all force payloads
-        uses: actions/download-artifact@v7
-        with:
-          pattern: force-payload-*
-          path: _ci/force/
-        continue-on-error: true
-
-      - name: Flatten into single bundle
-        run: |
-          set -euo pipefail
-          mkdir -p _ci/bundle
-          shopt -s nullglob
-          # Multi-artifact layout: _ci/force/force-payload-<id>/<id>-<sha>/
-          for d in _ci/force/force-payload-*/*/; do
-            cp -r "$d" _ci/bundle/
-          done
-          for d in _ci/force/*/; do
-            [[ "$(basename "$d")" == force-payload-* ]] && continue
-            cp -r "$d" _ci/bundle/
-          done
-
-      - uses: actions/upload-artifact@v6
-        with:
-          name: force-build-outputs
-          path: _ci/bundle/
-          retention-days: 14
-          if-no-files-found: ignore
+          name: phase-distorter-build-${{ matrix.port.label }}
+          path: ${{ fromJSON(needs.discover.outputs.matrix)[0].id == matrix.port.id && 'ports/released/phase-distorter/phase-distorter' || format('{0}', 'ports/released/phase-distorter/phase-distorter') }}
+          if-no-files-found: error
