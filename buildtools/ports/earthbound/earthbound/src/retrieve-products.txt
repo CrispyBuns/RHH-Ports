@@ -5,4 +5,7 @@ SRCDIR=$1
 DESTDIR=$2
 mkdir -p "$DESTDIR"
 install -m 0755 "$SRCDIR/earthbound" "$DESTDIR/earthbound"
-echo "EarthBound ARM64 executable staged (ROM not included)."
+install -m 0755 "$SRCDIR/ebtools" "$DESTDIR/ebtools"
+install -m 0644 "$SRCDIR/earthbound.yml" "$DESTDIR/earthbound.yml"
+install -m 0644 "$SRCDIR/commondefs.yml" "$DESTDIR/commondefs.yml"
+echo "EarthBound ARM64 executable and self-contained ebtools extractor staged (ROM not included)."
