@@ -17,6 +17,18 @@ RUN apt install -y --no-install-recommends \
         build-essential git make cmake \
         pkg-config ninja-build
 
+# GCC 11 provides the C++20 standard library headers (including <span>)
+# required by Phase Distorter while retaining Ubuntu 20.04 as the build base.
+RUN apt install -y --no-install-recommends software-properties-common \
+    && add-apt-repository -y ppa:ubuntu-toolchain-r/test \
+    && apt update \
+    && apt install -y --no-install-recommends gcc-11 g++-11 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Make CMake projects use GCC 11 by default in this shared build image.
+ENV CC=gcc-11
+ENV CXX=g++-11
+
 # SDL2 development package for ports that use pkg-config to locate SDL2.
 # Device runtime SDL2 is still provided by KNULLI/PortMaster; this package
 # supplies the headers and pkg-config metadata needed during compilation.
