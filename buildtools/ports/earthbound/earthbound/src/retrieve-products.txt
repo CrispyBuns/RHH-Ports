@@ -5,7 +5,8 @@ SRCDIR=$1
 DESTDIR=$2
 mkdir -p "$DESTDIR"
 install -m 0755 "$SRCDIR/earthbound" "$DESTDIR/earthbound"
-install -m 0755 "$SRCDIR/ebtools" "$DESTDIR/ebtools"
+install -d "$DESTDIR/python-deps"
+cp -a "$SRCDIR/python-deps/." "$DESTDIR/python-deps/"
 install -m 0644 "$SRCDIR/earthbound.yml" "$DESTDIR/earthbound.yml"
 install -m 0644 "$SRCDIR/commondefs.yml" "$DESTDIR/commondefs.yml"
-echo "EarthBound ARM64 executable and self-contained ebtools extractor staged (ROM not included)."
+echo "EarthBound ARM64 executable and Python 3.11-compatible ebtools package staged for PortMaster runtime (ROM not included)."
