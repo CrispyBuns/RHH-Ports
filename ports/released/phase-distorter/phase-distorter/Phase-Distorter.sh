@@ -38,17 +38,16 @@ ASSET_PACK="$XDG_DATA_HOME/ebsrc/EarthBoundCpp/earthbound.ebpak"
 if [ ! -s "$ASSET_PACK" ]; then
     ROM=""
     for root in \
-        "${SDCARD:-/roms}/snes" \
-        "/roms/snes" \
-        "/userdata/roms/snes" \
-        "/userdata/ROMS/snes" \
-        "$HOME/roms/snes" \
-        "$HOME/Roms/SNES"; do
+        "${SDCARD:-/roms}" \
+        "/roms" \
+        "/userdata/roms" \
+        "/userdata/ROMS" \
+        "$HOME/roms" \
+        "$HOME/Roms"; do
         [ -d "$root" ] || continue
         ROM="$(find "$root" -type f \( \
-            -iname 'earthbound.sfc' -o -iname 'earthbound.smc' -o \
-            -iname 'earthbound.sfc.gz' -o -iname 'earthbound.smc.gz' -o \
-            -iname 'earth-bound.sfc' -o -iname 'earth-bound.smc' -o \
+            -iname '*earthbound*.sfc' -o -iname '*earthbound*.smc' -o \
+            -iname '*earth-bound*.sfc' -o -iname '*earth-bound*.smc' -o \
             -iname 'eb.sfc' -o -iname 'eb.smc' \
             \) -print -quit 2>/dev/null || true)"
         [ -n "$ROM" ] && break
