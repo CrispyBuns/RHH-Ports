@@ -1,0 +1,8 @@
+#!/bin/bash
+set -euo pipefail
+
+SRCDIR=$1
+DESTDIR=$2
+mkdir -p "$DESTDIR"
+install -m 0755 "$SRCDIR/earthbound" "$DESTDIR/earthbound"
+echo "EarthBound ARM64 executable staged (ROM not included)."
