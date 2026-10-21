@@ -100,8 +100,9 @@ jobs:
           generated="ChaotixRecompiled/generated"
           test -s "$generated/recomp_tables.cpp"
           test -s "$generated/recomp_decls.h"
-          for i in $(seq -w 0 7); do
-            test -f "$generated/recomp_sh2_00${i}.cpp"
+          for i in $(seq 0 7); do
+            printf -v shard "%03d" "$i"
+            test -f "$generated/recomp_sh2_${shard}.cpp"
           done
           for i in $(seq 0 15); do
             printf -v shard "%03d" "$i"
@@ -120,8 +121,8 @@ jobs:
             -DCHAOTIX_GENERATED_DIR="$GITHUB_WORKSPACE/ChaotixRecompiled/generated" \
             -DCMAKE_BUILD_RPATH='$ORIGIN/libs' \
             -DCMAKE_INSTALL_RPATH='$ORIGIN/libs' \
-            -DCMAKE_PREFIX_PATH=/usr/local
-          grep -F "Chaotix: using pre-generated code" ChaotixRecompiled/build/CMakeFiles/CMakeOutput.log >/dev/null 2>&1 || true
+            -DCMAKE_PREFIX_PATH=/usr/local 2>&1 | tee ChaotixRecompiled/configure.log
+          grep -F "Chaotix: using pre-generated code" ChaotixRecompiled/configure.log
           cmake --build ChaotixRecompiled/build --target chaotix --parallel 4
 
       - name: Assemble PortMaster autoinstall ZIP
