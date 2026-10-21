@@ -32,7 +32,8 @@ python -m pip install --target ../python-deps \
 python -m pip install --no-deps --target ../python-deps .
 install -D earthbound.yml ../earthbound.yml
 install -D commondefs.yml ../commondefs.yml
-PYTHONPATH="../python-deps" python -m ebtools --help >/dev/null
+ebtools --help >/dev/null
+ test -f ../python-deps/ebtools/__main__.py
 if [[ ! -f asm/bin/assets.manifest || ! -f src/assets/items/items.json || ! -f src/assets/music_tracks.json ]]; then
   ebtools extract earthbound.yml earthbound.sfc
 fi
