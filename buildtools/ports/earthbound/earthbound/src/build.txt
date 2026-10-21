@@ -17,7 +17,21 @@ fi
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e .
+python -m pip install -e . pyinstaller
+
+# Build a self-contained ARM64 extractor so the handheld does not need a
+# system Python installation or separately installed Python packages.
+# This runs inside the native ARM64 build container, matching the target ABI.
+pyinstaller --clean --noconfirm --onefile --name ebtools \
+  --collect-submodules ebtools \
+  --collect-all cyclopts \
+  --collect-all pydantic \
+  --collect-all yaml \
+  --collect-all PIL \
+  ebtools/__main__.py
+install -D dist/ebtools ../ebtools
+install -D earthbound.yml ../earthbound.yml
+install -D commondefs.yml ../commondefs.yml
 if [[ ! -f asm/bin/assets.manifest || ! -f src/assets/items/items.json || ! -f src/assets/music_tracks.json ]]; then
   ebtools extract earthbound.yml earthbound.sfc
 fi
