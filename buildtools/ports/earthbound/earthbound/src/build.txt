@@ -14,25 +14,25 @@ if [[ ! -f asm/bin/assets.manifest || ! -f src/assets/items/items.json || ! -f s
   cp "$OLDPWD/earthbound.sfc" ./earthbound.sfc
 fi
 
+# Use the build container's Python only for extraction during compilation.
+# For the handheld, bundle Python packages for PortMaster's shared Python 3.11
+# runtime instead of embedding another interpreter with PyInstaller.
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e . pyinstaller
+python -m pip install -e .
 
-# Build a self-contained ARM64 extractor so the handheld does not need a
-# system Python installation or separately installed Python packages.
-# This runs inside the native ARM64 build container, matching the target ABI.
-pyinstaller --clean --noconfirm --onefile --name ebtools \
-  --collect-submodules ebtools \
-  --collect-all cyclopts \
-  --collect-all pydantic \
-  --collect-all yaml \
-  --collect-all PIL \
-  ebtools/__main__.py
-install -D dist/ebtools ../ebtools
+mkdir -p ../python-deps
+python -m pip install --target ../python-deps \
+  --python-version 3.11 \
+  --platform manylinux_2_17_aarch64 \
+  --platform manylinux2014_aarch64 \
+  --implementation cp --abi cp311 --only-binary=:all: \
+  'pyyaml>=6.0' 'cyclopts>=3.6' 'Pillow>=9.0' 'pydantic>=2.0'
+python -m pip install --no-deps --target ../python-deps .
 install -D earthbound.yml ../earthbound.yml
 install -D commondefs.yml ../commondefs.yml
-../ebtools --help >/dev/null
+PYTHONPATH="../python-deps" python -m ebtools --help >/dev/null
 if [[ ! -f asm/bin/assets.manifest || ! -f src/assets/items/items.json || ! -f src/assets/music_tracks.json ]]; then
   ebtools extract earthbound.yml earthbound.sfc
 fi
