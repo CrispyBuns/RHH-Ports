@@ -1,16 +1,13 @@
 name: Build Phase Distorter Auto-Install ZIP
 
 on:
+  workflow_run:
+    workflows: ["Build Ports"]
+    types: [completed]
   workflow_dispatch:
-  push:
-    branches:
-      - phase-distorter-rg35xx-h-knulli
-    paths:
-      - ".github/workflows/package_phase_distorter.yml"
-      - "ports/released/phase-distorter/phase-distorter/**"
-      - "buildtools/ports/phase-distorter/phase-distorter/**"
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -21,40 +18,32 @@ jobs:
       - name: Check out RHH-Ports
         uses: actions/checkout@v5
 
-      - name: Install build dependencies (SDL2 is build-only)
+      - name: Download Phase Distorter from Build Ports workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          mkdir -p _package/build _package/Phase-Distorter _build
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            RUN_ID="$(gh run list --workflow build_ports.yml --branch phase-distorter-rg35xx-h-knulli --limit 20 --json databaseId,conclusion --jq '.[] | select(.conclusion == "success") | .databaseId' | head -n1)"
+          fi
+          [[ -n "${RUN_ID:-}" ]] || { echo "::error::No successful Build Ports run found."; exit 1; }
+          artifact="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" --paginate --jq '.artifacts[] | select(.name | startswith("phase-distorter-build-")) | .name' | head -n1)"
+          [[ -n "$artifact" ]] || { echo "::error::No Phase Distorter artifact found in Build Ports run $RUN_ID."; exit 1; }
+          gh run download "$RUN_ID" --name "$artifact" --dir _package/build
+          pd="$(find _package/build -type f -name 'Phase-Distorter' -print -quit)"
+          [[ -n "$pd" ]] || { echo "::error::Build Ports artifact did not contain Phase-Distorter."; find _package/build -maxdepth 5 -type f -print; exit 1; }
+          cp "$pd" _package/Phase-Distorter/Phase-Distorter
+          file _package/Phase-Distorter/Phase-Distorter
+
+      - name: Install GL4ES build dependencies (SDL2 not shipped)
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build pkg-config git zip \
-            libsdl2-dev libgl-dev libegl1-mesa-dev libgles2-mesa-dev
-          pkg-config --modversion sdl2
-
-      - name: Build Phase Distorter for RG35XX-H (ARM64)
-        run: |
-          set -euo pipefail
-          mkdir -p _build _package/Phase-Distorter
-          git clone --depth 1 --branch rg35xx-h-knulli \
-            https://github.com/CrispyBuns/Phase-Distorter.git _build/phase-distorter-src
-          cmake -S _build/phase-distorter-src/cpp -B _build/pd-build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DEB_PREGENERATED_DIR="$GITHUB_WORKSPACE/_build/phase-distorter-src/generated" \
-            -DEB_BUILD_TESTS=OFF \
-            -DEB_BUILD_FRONTEND=ON \
-            -DEB_TARGET_CORTEX_A53=ON
-          cmake --build _build/pd-build --parallel "$(nproc)"
-          if [[ -f _build/pd-build/eb_cpp ]]; then
-            cp _build/pd-build/eb_cpp _build/Phase-Distorter
-          elif [[ -f _build/pd-build/Phase-Distorter ]]; then
-            cp _build/pd-build/Phase-Distorter _build/Phase-Distorter
-          else
-            echo "::error::Phase Distorter executable was not produced"
-            find _build/pd-build -maxdepth 3 -type f -executable -print
-            exit 1
-          fi
-          file _build/Phase-Distorter
-          chmod +x _build/Phase-Distorter
-
+            libgl-dev libegl1-mesa-dev libgles2-mesa-dev
       - name: Build GL4ES for OpenGL 2.1 compatibility via GLES2
         run: |
           set -euo pipefail
@@ -78,7 +67,6 @@ jobs:
         run: |
           set -euo pipefail
           port_dir=_package/Phase-Distorter
-          cp _build/Phase-Distorter "$port_dir/Phase-Distorter"
           cp ports/released/phase-distorter/phase-distorter/Phase-Distorter.sh "$port_dir/Phase-Distorter.sh"
           cp ports/released/phase-distorter/phase-distorter/README.md "$port_dir/README.md"
           cp ports/released/phase-distorter/phase-distorter/port.json "$port_dir/port.json"
