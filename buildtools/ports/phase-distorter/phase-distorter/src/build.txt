@@ -5,13 +5,18 @@ project_clone https://github.com/TheRunaway5/Phase-Distorter.git
 
 # Build the checked-in C++ translation without requiring the original assembly
 # toolchain. This port deliberately does not bundle ROMs or imported asset packs.
+# RG35XX-H uses the Allwinner H700 with Cortex-A53 ARMv8-A cores. Avoid
+# -march=native: the build runs in CI, not on the handheld.
+ARM64_OPT_FLAGS="-O3 -pipe -mcpu=cortex-a53 -mtune=cortex-a53 -ffunction-sections -fdata-sections"
+
 cmake -S "$PROJECT_DIR/cpp" -B "$PROJECT_BUILD_DIR" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DEB_PREGENERATED_DIR="$PROJECT_DIR/generated" \
   -DEB_BUILD_TESTS=OFF \
   -DEB_BUILD_FRONTEND=ON \
-  -DCMAKE_CXX_FLAGS="-O2 -pipe -mcpu=cortex-a53" \
-  -DCMAKE_EXE_LINKER_FLAGS="-Wl,--as-needed"
+  -DCMAKE_C_FLAGS="$ARM64_OPT_FLAGS" \
+  -DCMAKE_CXX_FLAGS="$ARM64_OPT_FLAGS" \
+  -DCMAKE_EXE_LINKER_FLAGS="-Wl,--as-needed -Wl,--gc-sections"
 cmake --build "$PROJECT_BUILD_DIR" --parallel "$(nproc)"
 
 # Give the executable a stable PortMaster-facing name.
