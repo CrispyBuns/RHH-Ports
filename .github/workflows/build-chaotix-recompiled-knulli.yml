@@ -94,16 +94,34 @@ jobs:
           sudo cmake --install SDL3_image/build
           sudo ldconfig
 
+      - name: Verify generated recompiler sources
+        run: |
+          set -euo pipefail
+          generated="ChaotixRecompiled/generated"
+          test -s "$generated/recomp_tables.cpp"
+          test -s "$generated/recomp_decls.h"
+          for i in $(seq -w 0 7); do
+            test -f "$generated/recomp_sh2_00${i}.cpp"
+          done
+          for i in $(seq 0 15); do
+            printf -v shard "%03d" "$i"
+            test -f "$generated/recomp_m68k_${shard}.cpp"
+          done
+          echo "Generated SH-2 and 68K sources are present."
+
       - name: Build Chaotix Recompiled
         run: |
+          set -euo pipefail
           cmake -S ChaotixRecompiled -B ChaotixRecompiled/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCHAOTIX_BUILD_FRONTEND=ON \
             -DCHAOTIX_BUILD_TESTS=OFF \
             -DCHAOTIX_BUILD_TOOLS=OFF \
+            -DCHAOTIX_GENERATED_DIR="$GITHUB_WORKSPACE/ChaotixRecompiled/generated" \
             -DCMAKE_BUILD_RPATH='$ORIGIN/libs' \
             -DCMAKE_INSTALL_RPATH='$ORIGIN/libs' \
             -DCMAKE_PREFIX_PATH=/usr/local
+          grep -F "Chaotix: using pre-generated code" ChaotixRecompiled/build/CMakeFiles/CMakeOutput.log >/dev/null 2>&1 || true
           cmake --build ChaotixRecompiled/build --target chaotix --parallel 4
 
       - name: Assemble PortMaster autoinstall ZIP
