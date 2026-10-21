@@ -14,5 +14,8 @@ cmake -S "$PROJECT_DIR/cpp" -B "$PROJECT_BUILD_DIR" -G Ninja \
   -DCMAKE_EXE_LINKER_FLAGS="-Wl,--as-needed"
 cmake --build "$PROJECT_BUILD_DIR" --parallel "$(nproc)"
 
+# Give the executable a stable PortMaster-facing name.
+mv "$PROJECT_BUILD_DIR/eb_cpp" "$PROJECT_BUILD_DIR/Phase-Distorter"
+
 mkdir -p "$PROJECT_BUILD_DIR/lib"
 # Runtime libraries are staged by the shared RHH build environment where needed.
