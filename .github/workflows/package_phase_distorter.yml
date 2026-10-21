@@ -74,6 +74,8 @@ jobs:
           cp ports/released/phase-distorter/phase-distorter/Phase-Distorter.sh "$port_dir/Phase-Distorter.sh"
           cp ports/released/phase-distorter/phase-distorter/README.md "$port_dir/README.md"
           cp ports/released/phase-distorter/phase-distorter/port.json "$port_dir/port.json"
+          mkdir -p "$port_dir/Rom"
+          touch "$port_dir/Rom/.keep"
           chmod +x "$port_dir/Phase-Distorter" "$port_dir/Phase-Distorter.sh"
           test -s "$port_dir/Phase-Distorter"
           test -s "$port_dir/gl4es.aarch64/libGL.so.1"
