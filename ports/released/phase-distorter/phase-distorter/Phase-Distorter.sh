@@ -15,7 +15,6 @@ GL4ES_DIR="$PORT_DIR/gl4es.aarch64"
 if [ -d "$GL4ES_DIR" ] && [ -f "$GL4ES_DIR/libGL.so.1" ]; then
     export LIBGL_ES=2
     export LIBGL_GL=21
-    export LIBGL_FB=4
     export SDL_VIDEO_GL_DRIVER="$GL4ES_DIR/libGL.so.1"
     if [ -f "$GL4ES_DIR/libEGL.so.1" ]; then
         export SDL_VIDEO_EGL_DRIVER="$GL4ES_DIR/libEGL.so.1"
