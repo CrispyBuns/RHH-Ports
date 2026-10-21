@@ -56,7 +56,6 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DNOX11=ON \
             -DGBM=OFF \
-            -DNOX11=ON \
             -DDEFAULT_ES=2 \
             -DEGL_WRAPPER=ON
           cmake --build _build/gl4es-build --parallel "$(nproc)"
