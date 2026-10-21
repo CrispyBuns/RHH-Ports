@@ -32,6 +32,7 @@ pyinstaller --clean --noconfirm --onefile --name ebtools \
 install -D dist/ebtools ../ebtools
 install -D earthbound.yml ../earthbound.yml
 install -D commondefs.yml ../commondefs.yml
+../ebtools --help >/dev/null
 if [[ ! -f asm/bin/assets.manifest || ! -f src/assets/items/items.json || ! -f src/assets/music_tracks.json ]]; then
   ebtools extract earthbound.yml earthbound.sfc
 fi
