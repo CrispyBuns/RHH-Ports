@@ -203,6 +203,18 @@
         "Z3R-Beta.sh",
         "z3r-beta"
       ]
+    },
+    "earthbound": {
+      "port_dir": "buildtools/ports/earthbound/earthbound",
+      "target_dirs": [
+        "ports/unreleased/earthbound"
+      ],
+      "upstream_repo": "CrispyBuns/earthbound-arm64",
+      "upstream_branch": "main",
+      "commit_prefix": "EARTHBOUND",
+      "artifacts": [
+        "earthbound"
+      ]
     }
   },
   "runtimes": {
