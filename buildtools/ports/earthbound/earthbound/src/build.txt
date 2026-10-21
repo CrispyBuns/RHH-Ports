@@ -1,0 +1,29 @@
+set -euo pipefail
+
+# EarthBound's C port needs data extracted from a user-owned US ROM.
+# Never download, commit, or package the ROM. A pre-extracted source tree can
+# build without the ROM only when its generated asset manifest/data are present.
+git clone --depth 1 --recurse-submodules https://github.com/CrispyBuns/earthbound-arm64.git earthbound-src
+cd earthbound-src
+
+if [[ ! -f asm/bin/assets.manifest || ! -f src/assets/items/items.json || ! -f src/assets/music_tracks.json ]]; then
+  if [[ ! -f "$OLDPWD/earthbound.sfc" ]]; then
+    echo "ERROR: EarthBound build needs a privately supplied US ROM named earthbound.sfc, or a source checkout with extracted assets (asm/bin/assets.manifest and src/assets/items/items.json). The ROM is intentionally not bundled or committed." >&2
+    exit 2
+  fi
+  cp "$OLDPWD/earthbound.sfc" ./earthbound.sfc
+fi
+
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+if [[ ! -f asm/bin/assets.manifest || ! -f src/assets/items/items.json || ! -f src/assets/music_tracks.json ]]; then
+  ebtools extract earthbound.yml earthbound.sfc
+fi
+cmake -S port/unix -B port/unix/build -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_FLAGS_RELEASE='-O3 -DNDEBUG -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections' \
+  -DCMAKE_EXE_LINKER_FLAGS='-Wl,--gc-sections'
+cmake --build port/unix/build --parallel "$(nproc)"
+install -D port/unix/build/earthbound ../earthbound
+strip --strip-unneeded ../earthbound
