@@ -55,8 +55,10 @@ jobs:
           cmake -S _build/gl4es-src -B _build/gl4es-build \
             -DCMAKE_BUILD_TYPE=Release \
             -DNOX11=ON \
-            -DNO_GBM=ON \
-            -DDEFAULT_ES=2
+            -DGBM=OFF \
+            -DNOX11=ON \
+            -DDEFAULT_ES=2 \
+            -DEGL_WRAPPER=ON
           cmake --build _build/gl4es-build --parallel "$(nproc)"
           gl4es_lib="$(find _build/gl4es-build _build/gl4es-src -type f \( -name 'libGL.so.1' -o -name 'libGL.so' \) -print -quit)"
           if [[ -z "$gl4es_lib" ]]; then
@@ -64,8 +66,15 @@ jobs:
             find _build/gl4es-build -type f -print
             exit 1
           fi
+          gl4es_egl="$(find _build/gl4es-build _build/gl4es-src -type f -name 'libEGL.so.1' -print -quit)"
+          if [[ -z "$gl4es_egl" ]]; then
+            echo "::error::GL4ES EGL wrapper libEGL.so.1 not found (EGL_WRAPPER=ON)"
+            find _build/gl4es-build _build/gl4es-src -type f -name '*EGL*' -print
+            exit 1
+          fi
           mkdir -p _package/Phase-Distorter/gl4es.aarch64
           cp -L "$gl4es_lib" _package/Phase-Distorter/gl4es.aarch64/libGL.so.1
+          cp -L "$gl4es_egl" _package/Phase-Distorter/gl4es.aarch64/libEGL.so.1
 
       - name: Assemble PortMaster auto-install ZIP
         run: |
@@ -79,6 +88,7 @@ jobs:
           chmod +x "$port_dir/Phase-Distorter" "$port_dir/Phase-Distorter.sh"
           test -s "$port_dir/Phase-Distorter"
           test -s "$port_dir/gl4es.aarch64/libGL.so.1"
+          test -s "$port_dir/gl4es.aarch64/libEGL.so.1"
           test -s "$port_dir/Phase-Distorter.sh"
           # SDL2 is provided by KNULLI/PortMaster at runtime; deliberately do not package it.
           # Zip contents are rooted at the port directory for PortMaster installation.
