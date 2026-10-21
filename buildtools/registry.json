@@ -214,7 +214,7 @@
       "commit_prefix": "EARTHBOUND",
       "artifacts": [
         "earthbound",
-        "ebtools",
+        "python-deps",
         "earthbound.yml",
         "commondefs.yml"
       ]
