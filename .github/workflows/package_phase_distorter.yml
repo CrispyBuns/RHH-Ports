@@ -1,0 +1,85 @@
+name: Package Phase Distorter RG35XX-H
+
+on:
+  workflow_run:
+    workflows: ["Build Ports"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  package:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check out port branch
+        uses: actions/checkout@v5
+        with:
+          ref: phase-distorter-rg35xx-h-knulli
+
+      - name: Download Phase Distorter build artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          mkdir -p _package/build
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Manual packaging requires a successful Build Ports artifact from the latest run."
+            RUN_ID=$(gh run list --workflow build_ports.yml --branch phase-distorter-rg35xx-h-knulli --limit 20 --json databaseId,conclusion --jq '.[] | select(.conclusion == "success") | .databaseId' | head -n1)
+          fi
+          [[ -n "${RUN_ID:-}" ]] || { echo "No successful Build Ports run found."; exit 1; }
+          artifact=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts" --paginate --jq '.artifacts[] | select(.name | startswith("phase-distorter-build-")) | .name' | head -n1)
+          [[ -n "$artifact" ]] || { echo "Phase Distorter build artifact not found in run $RUN_ID."; exit 1; }
+          echo "Using artifact: $artifact"
+          gh run download "$RUN_ID" --name "$artifact" --dir _package/build
+
+      - name: Install GL4ES build dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config libgles2-mesa-dev libegl1-mesa-dev
+
+      - name: Build GL4ES for RG35XX-H
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/ptitSeb/gl4es.git _package/gl4es-src
+          cmake -S _package/gl4es-src -B _package/gl4es-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNOX11=ON \
+            -DNO_GBM=ON \
+            -DDEFAULT_ES=2
+          cmake --build _package/gl4es-build --parallel
+
+      - name: Assemble PortMaster package
+        run: |
+          set -euo pipefail
+          mkdir -p _package/final/gl4es.aarch64
+          find _package/build -type f -name 'Phase-Distorter' -exec cp {} _package/final/Phase-Distorter \;
+          find _package/build -type f -name 'Phase-Distorter.sh' -exec cp {} _package/final/Phase-Distorter.sh \;
+          [[ -x _package/final/Phase-Distorter || -f _package/final/Phase-Distorter ]] || { echo 'Phase-Distorter binary missing'; exit 1; }
+          [[ -f _package/final/Phase-Distorter.sh ]] || { echo 'Phase-Distorter launcher missing'; exit 1; }
+          chmod +x _package/final/Phase-Distorter.sh
+          gl=$(find _package/gl4es-build _package/gl4es-src -type f \( -name 'libGL.so.1' -o -name 'libGL.so' \) | head -n1)
+          [[ -n "$gl" ]] || { echo 'GL4ES libGL.so was not produced'; exit 1; }
+          cp -L "$gl" _package/final/gl4es.aarch64/libGL.so.1
+          if [[ -f _package/gl4es-build/lib/libEGL.so.1 ]]; then cp -L _package/gl4es-build/lib/libEGL.so.1 _package/final/gl4es.aarch64/; fi
+          find _package/build -type f ! -name 'Phase-Distorter' ! -name 'Phase-Distorter.sh' -exec cp --parents {} _package/final/ \; || true
+          printf '%s\n' \
+            'Phase Distorter - RG35XX-H / KNULLI' \
+            '' \
+            'OpenGL 2.1 is translated through the bundled ARM64 GL4ES runtime to GLES2.' \
+            'This package does not include ROMs or copyrighted game assets.' \
+            'No DRM/KMS-specific display backend is configured.' \
+            > _package/final/README.txt
+          (cd _package/final && zip -r ../../Phase-Distorter-RG35XX-H-KNULLI.zip .)
+
+      - name: Upload final ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Phase-Distorter-RG35XX-H-KNULLI
+          path: Phase-Distorter-RG35XX-H-KNULLI.zip
+          if-no-files-found: error
