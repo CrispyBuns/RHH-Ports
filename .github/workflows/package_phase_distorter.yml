@@ -33,11 +33,12 @@ jobs:
       - name: Build Phase Distorter for RG35XX-H (ARM64)
         run: |
           set -euo pipefail
+          mkdir -p _build _package/Phase-Distorter
           git clone --depth 1 --branch rg35xx-h-knulli \
             https://github.com/CrispyBuns/Phase-Distorter.git _build/phase-distorter-src
           cmake -S _build/phase-distorter-src/cpp -B _build/pd-build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DEB_PREGENERATED_DIR=_build/phase-distorter-src/generated \
+            -DEB_PREGENERATED_DIR="$GITHUB_WORKSPACE/_build/phase-distorter-src/generated" \
             -DEB_BUILD_TESTS=OFF \
             -DEB_BUILD_FRONTEND=ON \
             -DEB_TARGET_CORTEX_A53=ON
