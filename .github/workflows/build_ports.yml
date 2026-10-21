@@ -84,39 +84,9 @@ jobs:
           if (( ${#matrix_entries[@]} == 0 )); then matrix="[]"; else matrix=$(printf '%s\n' "${matrix_entries[@]}" | jq -cs .); fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
-  base-image:
-    runs-on: ubuntu-24.04-arm
-    needs: discover
-    if: needs.discover.outputs.matrix != '[]'
-    outputs:
-      image: ${{ steps.tag.outputs.image }}
-    steps:
-      - uses: actions/checkout@v5
-      - name: Compute image tag
-        id: tag
-        run: |
-          set -euo pipefail
-          digest=$(sha1sum buildtools/Dockerfile.base | cut -c1-12)
-          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          image="ghcr.io/$owner/rhh-base:$digest"
-          echo "image=$image" >> "$GITHUB_OUTPUT"
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push if not cached
-        run: |
-          set -euo pipefail
-          image="${{ steps.tag.outputs.image }}"
-          if docker pull "$image" >/dev/null 2>&1; then exit 0; fi
-          docker build --platform linux/aarch64 -t "$image" -f buildtools/Dockerfile.base buildtools/
-          docker push "$image"
-
   build:
     runs-on: ubuntu-24.04-arm
-    needs: [discover, base-image]
+    needs: [discover]
     if: needs.discover.outputs.matrix != '[]'
     strategy:
       fail-fast: false
@@ -130,18 +100,6 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y libsdl2-dev pkg-config
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Pull rhh-base from GHCR
-        if: matrix.port.base == 'rhh-base'
-        run: |
-          set -euo pipefail
-          docker pull "${{ needs.base-image.outputs.image }}"
-          docker tag "${{ needs.base-image.outputs.image }}" rhh-base
       - name: Build port
         id: build
         continue-on-error: ${{ inputs.port == '' || inputs.port == 'all' }}
