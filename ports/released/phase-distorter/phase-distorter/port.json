@@ -1,0 +1,28 @@
+{
+  "version": 4,
+  "name": "phase-distorter.zip",
+  "items": [
+    "Phase-Distorter.sh",
+    "Phase-Distorter",
+    "lib",
+    "README.md"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Phase Distorter",
+    "porter": ["CrispyBuns"],
+    "desc": "A native C++20 EarthBound / Mother 2 port. Requires the player's own supported ROM to import assets on first launch.",
+    "desc_md": null,
+    "inst": "Install the port, launch Phase Distorter, and import your own supported EarthBound (US) or Mother 2 (Japan) ROM when prompted.",
+    "inst_md": null,
+    "genres": ["role-playing"],
+    "image": null,
+    "rtr": false,
+    "exp": true,
+    "runtime": [],
+    "store": [],
+    "availability": "free",
+    "reqs": ["opengl"],
+    "arch": ["aarch64"]
+  }
+}
