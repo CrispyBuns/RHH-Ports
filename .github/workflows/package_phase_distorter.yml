@@ -65,8 +65,7 @@ jobs:
             -DNO_GBM=ON \
             -DDEFAULT_ES=2
           cmake --build _build/gl4es-build --parallel "$(nproc)"
-          gl4es_lib="$(find _build/gl4es-build _build/gl4es-src -type f \\
-            \\( -name 'libGL.so.1' -o -name 'libGL.so' \\) -print -quit)"
+          gl4es_lib="$(find _build/gl4es-build _build/gl4es-src -type f \( -name 'libGL.so.1' -o -name 'libGL.so' \) -print -quit)"
           if [[ -z "$gl4es_lib" ]]; then
             echo "::error::GL4ES libGL output not found"
             find _build/gl4es-build -type f -print
