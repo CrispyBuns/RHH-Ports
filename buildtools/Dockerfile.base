@@ -17,6 +17,12 @@ RUN apt install -y --no-install-recommends \
         build-essential git make cmake \
         pkg-config ninja-build
 
+# SDL2 development package for ports that use pkg-config to locate SDL2.
+# Device runtime SDL2 is still provided by KNULLI/PortMaster; this package
+# supplies the headers and pkg-config metadata needed during compilation.
+RUN apt install -y --no-install-recommends \
+        libsdl2-dev
+
 # SDL2 subsystem dev headers. Ports build SDL 2.32 from source (focal's
 # libsdl2-dev is too old for most of the decomps we target) so that other
 # libs can link against a modern SDL2 at build time. The built SDL2 is NOT
