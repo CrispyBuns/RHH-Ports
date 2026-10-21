@@ -22,8 +22,7 @@ RUN apt install -y --no-install-recommends \
 RUN apt install -y --no-install-recommends software-properties-common \
     && add-apt-repository -y ppa:ubuntu-toolchain-r/test \
     && apt update \
-    && apt install -y --no-install-recommends gcc-11 g++-11 \
-    && rm -rf /var/lib/apt/lists/*
+    && apt install -y --no-install-recommends gcc-11 g++-11
 
 # Make CMake projects use GCC 11 by default in this shared build image.
 ENV CC=gcc-11
