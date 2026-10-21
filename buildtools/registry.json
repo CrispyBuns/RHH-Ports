@@ -213,7 +213,10 @@
       "upstream_branch": "main",
       "commit_prefix": "EARTHBOUND",
       "artifacts": [
-        "earthbound"
+        "earthbound",
+        "ebtools",
+        "earthbound.yml",
+        "commondefs.yml"
       ]
     }
   },
