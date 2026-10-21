@@ -30,37 +30,32 @@ if [ ! -x "$PD" ]; then
     exit 1
 fi
 
-# If the player has not imported assets yet, look for an EarthBound ROM in
-# common KNULLI/PortMaster SNES ROM folders. The ROM is never copied into this
-# port or redistributed; Phase Distorter imports it into its normal user-data
-# asset pack. Only clearly named EarthBound ROM files are auto-selected.
+# Keep the user's own EarthBound ROM in the port's Rom/ folder. This folder is
+# intentionally shipped empty; ROM files are not included in the installer.
 ASSET_PACK="$XDG_DATA_HOME/ebsrc/EarthBoundCpp/earthbound.ebpak"
 if [ ! -s "$ASSET_PACK" ]; then
     ROM=""
-    for root in \
-        "${SDCARD:-/roms}" \
-        "/roms" \
-        "/userdata/roms" \
-        "/userdata/ROMS" \
-        "$HOME/roms" \
-        "$HOME/Roms"; do
-        [ -d "$root" ] || continue
-        ROM="$(find "$root" -type f \( \
+    if [ -d "$PORT_DIR/Rom" ]; then
+        ROM="$(find "$PORT_DIR/Rom" -type f \( \
             -iname '*earthbound*.sfc' -o -iname '*earthbound*.smc' -o \
             -iname '*earth-bound*.sfc' -o -iname '*earth-bound*.smc' -o \
-            -iname 'eb.sfc' -o -iname 'eb.smc' \
-            \) -print -quit 2>/dev/null || true)"
-        [ -n "$ROM" ] && break
-    done
+            -iname 'eb.sfc' -o -iname 'eb.smc' -o \
+            -iname '*.sfc' -o -iname '*.smc' \
+            \) ! -iname '*.gz' -print -quit 2>/dev/null || true)"
+    fi
 
     if [ -n "$ROM" ]; then
-        echo "Found EarthBound ROM: $ROM"
+        echo "Found EarthBound ROM in Rom/: $ROM"
         echo "Importing assets for Phase Distorter..."
         if ! "$PD" --import-rom "$ROM" --import-only; then
-            echo "Automatic ROM import failed. Check that the ROM is a supported US EarthBound image."
+            echo "ROM import failed. Make sure Rom/ contains a supported US EarthBound ROM."
             read -r -p "Press Enter to exit..."
             exit 1
         fi
+    else
+        echo "No ROM found in $PORT_DIR/Rom/"
+        echo "Copy your own supported US EarthBound ROM into the Rom/ folder, then launch again."
+        read -r -p "Press Enter to continue..."
     fi
 fi
 
