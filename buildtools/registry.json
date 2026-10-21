@@ -203,6 +203,22 @@
         "Z3R-Beta.sh",
         "z3r-beta"
       ]
+    },
+    "phase-distorter": {
+      "port_dir": "buildtools/ports/phase-distorter/phase-distorter",
+      "target_dirs": [
+        "ports/released/phase-distorter/phase-distorter"
+      ],
+      "upstream_repo": "TheRunaway5/Phase-Distorter",
+      "upstream_branch": "main",
+      "commit_prefix": "PHASE-DISTORTER",
+      "artifacts": [
+        "Phase-Distorter",
+        "lib",
+        "Phase-Distorter.sh",
+        "port.json",
+        "README.md"
+      ]
     }
   },
   "runtimes": {
