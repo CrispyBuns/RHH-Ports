@@ -90,30 +90,30 @@ if [ ! -x "$GAMEDIR/ChaotixRecompiled" ]; then
   exit 1
 fi
 
-if [ ! -f "$USERDIR/Game/chaotix.32x" ] && [ ! -f "$USERDIR/Game/Knuckles' Chaotix.32x" ]; then
-  if [ ! -f "$ROM" ]; then
-    shopt -s nullglob
-    rom_candidates=("$ROMDIR"/*.32x "$ROMDIR"/*.bin)
-    shopt -u nullglob
+# ROMs for the port live in the main port directory's ROM folder.
+# No ROM is included with the port.
+if [ ! -f "$ROM" ]; then
+  shopt -s nullglob
+  rom_candidates=("$ROMDIR"/*.32x "$ROMDIR"/*.bin)
+  shopt -u nullglob
 
-    if [ "${#rom_candidates[@]}" -eq 1 ]; then
-      ROM="${rom_candidates[0]}"
-    elif [ "${#rom_candidates[@]}" -gt 1 ]; then
-      pm_show_error "Multiple ROM files found in $ROMDIR. Keep one .32x or .bin ROM, or name the preferred file chaotix.32x."
-      exit 1
-    else
-      pm_show_error "ROM not found. Place one legally obtained .32x or .bin ROM in /roms/ports/chaotix-recompiled/ROM/. No ROM is included."
-      exit 1
-    fi
+  if [ "${#rom_candidates[@]}" -eq 1 ]; then
+    ROM="${rom_candidates[0]}"
+  elif [ "${#rom_candidates[@]}" -gt 1 ]; then
+    pm_show_error "Multiple ROM files found in $ROMDIR. Keep one .32x or .bin ROM, or name the preferred file chaotix.32x."
+    exit 1
+  else
+    pm_show_error "ROM not found. Place one legally obtained .32x or .bin ROM in /roms/ports/chaotix-recompiled/ROM/. No ROM is included."
+    exit 1
   fi
+fi
 
-  pm_message "Installing Chaotix ROM..."
-  run_chaotix --user-dir "$USERDIR" --install "$ROM"
-  result=$?
-  if [ "$result" -ne 0 ]; then
-    pm_show_error "ROM installation failed. Check that it is Knuckles' Chaotix (Japan, USA) or Sonic in Chaotix Revision 2. See log.txt."
-    exit "$result"
-  fi
+pm_message "Installing Chaotix ROM..."
+run_chaotix --user-dir "$USERDIR" --install "$ROM"
+result=$?
+if [ "$result" -ne 0 ]; then
+  pm_show_error "ROM installation failed. Check that it is Knuckles' Chaotix (Japan, USA) or Sonic in Chaotix Revision 2. See log.txt."
+  exit "$result"
 fi
 
 # Start the controller mapper only when PortMaster supplied it.
