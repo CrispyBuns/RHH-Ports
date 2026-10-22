@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "name": "chaotix-recompiled.zip",
+  "items": [
+    "Chaotix Recompiled.sh",
+    "chaotix-recompiled"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Chaotix Recompiled",
+    "porter": ["CrispyBuns"],
+    "desc": "Native static recompilation of Knuckles' Chaotix for KNULLI.",
+    "desc_md": null,
+    "inst": "You must provide your own legally obtained Knuckles' Chaotix (Japan, USA) ROM. Place it at /roms/ports/chaotix-recompiled/ROM/chaotix.32x. The first launch verifies and installs the ROM. No ROM or BIOS is included.",
+    "inst_md": null,
+    "genres": ["platformer"],
+    "image": null,
+    "rtr": false,
+    "exp": true,
+    "runtime": [],
+    "store": [],
+    "availability": "free",
+    "reqs": [],
+    "arch": ["aarch64"],
+    "min_glibc": null
+  }
+}
