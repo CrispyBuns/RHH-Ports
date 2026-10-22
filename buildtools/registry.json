@@ -191,17 +191,17 @@
         "libs"
       ]
     },
-    "z3r-beta": {
-      "port_dir": "buildtools/ports/z3r-beta/z3r-beta",
+    "chaotix-recompiled": {
+      "port_dir": "buildtools/ports/chaotix-recompiled/chaotix-recompiled",
       "target_dirs": [
-        "ports/released/z3r-beta"
+        "ports/released/chaotix-recompiled/chaotix-recompiled"
       ],
-      "upstream_repo": "CrispyBuns/Z3R-Beta",
+      "upstream_repo": "CrispyBuns/ChaotixRecompiled",
       "upstream_branch": "main",
-      "commit_prefix": "Z3R-BETA",
+      "commit_prefix": "CHAOTIX",
       "artifacts": [
-        "Z3R-Beta.sh",
-        "z3r-beta"
+        "ChaotixRecompiled",
+        "libs"
       ]
     }
   },

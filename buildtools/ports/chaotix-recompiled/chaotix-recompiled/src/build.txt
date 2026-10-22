@@ -1,0 +1,64 @@
+#!/bin/bash
+set -euo pipefail
+
+# Upstream commits its generated recompilation sources, so this build does
+# not require or download a game ROM.
+git clone --depth 1 --branch main https://github.com/CrispyBuns/ChaotixRecompiled.git ChaotixRecompiled
+# PortMaster handhelds often ship a patched SDL2 with their display backend.
+# This SDL3 fork forwards SDL3 video/audio/input to that device SDL2 runtime.
+git clone --depth 1 --branch sdl2-backend https://github.com/bmdhacks/SDL.git SDL3
+git clone --depth 1 --branch release-3.2.2 --recurse-submodules https://github.com/libsdl-org/SDL_ttf.git SDL3_ttf
+
+# Build and install the SDL3-on-SDL2 backend first so SDL3_ttf and the game
+# can resolve its SDL3 headers, shared library, and CMake package.
+cmake -S SDL3 -B SDL3/build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF \
+    -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON \
+    -DSDL_SDL2_BACKEND=ON -DSDL_GPU=OFF -DSDL_RENDER_GPU=OFF \
+    -DSDL_X11=OFF -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF \
+    -DSDL_UNIX_CONSOLE_BUILD=ON \
+    -DCMAKE_INSTALL_PREFIX=/usr/local
+cmake --build SDL3/build --parallel 2
+cmake --install SDL3/build
+ldconfig
+
+cmake -S SDL3_ttf -B SDL3_ttf/build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DSDLTTF_SHARED=ON -DSDLTTF_STATIC=OFF \
+    -DSDLTTF_VENDORED=ON -DSDLTTF_SAMPLES=OFF -DSDLTTF_TESTS=OFF \
+    -DCMAKE_PREFIX_PATH=/usr/local
+cmake --build SDL3_ttf/build --parallel 2
+cmake --install SDL3_ttf/build
+ldconfig
+
+# The build-port retrieval helper collects project/build/<binary> and
+# project/build/libs, so place the executable and runtime libraries there.
+cmake -S ChaotixRecompiled -B project/build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCHAOTIX_BUILD_FRONTEND=ON \
+    -DCHAOTIX_BUILD_TESTS=OFF \
+    -DCHAOTIX_BUILD_TOOLS=OFF \
+    -DCMAKE_BUILD_RPATH='$ORIGIN/libs' \
+    -DCMAKE_INSTALL_RPATH='$ORIGIN/libs' \
+    -DCMAKE_PREFIX_PATH=/usr/local
+cmake --build project/build --target chaotix --parallel 2
+
+mkdir -p project/build/libs
+
+# Package the exact SONAME filenames the executable needs as regular files.
+# Dereference system symlinks so SD-card filesystems and ZIP extraction do not
+# need to preserve symlink semantics. SDL2 remains supplied by PortMaster.
+for library in libSDL3.so.0 libSDL3_ttf.so.0; do
+    source="/usr/local/lib/$library"
+    destination="project/build/libs/$library"
+    if [[ ! -e "$source" ]]; then
+        echo "Missing runtime library: $source" >&2
+        exit 1
+    fi
+    cp -L "$source" "$destination"
+    if [[ ! -s "$destination" || -L "$destination" ]]; then
+        echo "Runtime library was not copied as a regular file: $destination" >&2
+        exit 1
+    fi
+done

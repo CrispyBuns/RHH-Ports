@@ -1,0 +1,162 @@
+name: Build Chaotix Recompiled autoinstall package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - chaotix-recompiled-knulli
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    env:
+      CFLAGS: "-O3 -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections"
+      CXXFLAGS: "-O3 -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections"
+      LDFLAGS: "-Wl,--gc-sections"
+    steps:
+      - name: Checkout RHH-Ports
+        uses: actions/checkout@v7.0.1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip \
+            libsdl2-dev libfreetype-dev libharfbuzz-dev libpng-dev libjpeg-dev \
+            libwebp-dev libtiff-dev libbrotli-dev
+
+      - name: Checkout Chaotix Recompiled
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: CrispyBuns/ChaotixRecompiled
+          ref: optimize-special-stage-fps
+          path: ChaotixRecompiled
+
+      - name: Checkout SDL3 SDL2-backend shim
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: bmdhacks/SDL
+          ref: sdl2-backend
+          path: SDL3
+
+      - name: Checkout SDL3_ttf source
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: libsdl-org/SDL_ttf
+          ref: release-3.2.2
+          submodules: recursive
+          path: SDL3_ttf
+
+      - name: Checkout SDL3_image source
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: libsdl-org/SDL_image
+          ref: release-3.2.4
+          submodules: recursive
+          path: SDL3_image
+
+      - name: Build SDL3 SDL2-backend shim
+        run: |
+          cmake -S SDL3 -B SDL3/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF \
+            -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON \
+            -DSDL_SDL2_BACKEND=ON -DSDL_GPU=OFF -DSDL_RENDER_GPU=OFF \
+            -DSDL_X11=OFF -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF \
+            -DSDL_UNIX_CONSOLE_BUILD=ON \
+            -DCMAKE_INSTALL_PREFIX=/usr/local
+          cmake --build SDL3/build --parallel 4
+          sudo cmake --install SDL3/build
+          sudo ldconfig
+
+      - name: Build SDL3_ttf
+        run: |
+          cmake -S SDL3_ttf -B SDL3_ttf/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSDLTTF_SHARED=ON -DSDLTTF_STATIC=OFF \
+            -DSDLTTF_VENDORED=ON -DSDLTTF_SAMPLES=OFF -DSDLTTF_TESTS=OFF \
+            -DCMAKE_PREFIX_PATH=/usr/local
+          cmake --build SDL3_ttf/build --parallel 4
+          sudo cmake --install SDL3_ttf/build
+          sudo ldconfig
+
+      - name: Build SDL3_image
+        run: |
+          cmake -S SDL3_image -B SDL3_image/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON -DSDLIMAGE_INSTALL=ON \
+            -DSDLIMAGE_VENDORED=ON -DSDLIMAGE_AVIF=OFF \
+            -DSDLIMAGE_SAMPLES=OFF -DSDLIMAGE_TESTS=OFF \
+            -DCMAKE_PREFIX_PATH=/usr/local
+          cmake --build SDL3_image/build --parallel 4
+          sudo cmake --install SDL3_image/build
+          sudo ldconfig
+
+      - name: Verify generated recompiler sources
+        run: |
+          set -euo pipefail
+          generated="ChaotixRecompiled/generated"
+          test -s "$generated/recomp_tables.cpp"
+          test -s "$generated/recomp_decls.h"
+          for i in $(seq 0 7); do
+            printf -v shard "%03d" "$i"
+            test -f "$generated/recomp_sh2_${shard}.cpp"
+          done
+          for i in $(seq 0 15); do
+            printf -v shard "%03d" "$i"
+            test -f "$generated/recomp_m68k_${shard}.cpp"
+          done
+          echo "Generated SH-2 and 68K sources are present."
+
+      - name: Build Chaotix Recompiled
+        run: |
+          set -euo pipefail
+          cmake -S ChaotixRecompiled -B ChaotixRecompiled/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCHAOTIX_BUILD_FRONTEND=ON \
+            -DCHAOTIX_BUILD_TESTS=OFF \
+            -DCHAOTIX_BUILD_TOOLS=OFF \
+            -DCHAOTIX_GENERATED_DIR="$GITHUB_WORKSPACE/ChaotixRecompiled/generated" \
+            -DCMAKE_BUILD_RPATH='$ORIGIN/libs' \
+            -DCMAKE_INSTALL_RPATH='$ORIGIN/libs' \
+            -DCMAKE_PREFIX_PATH=/usr/local 2>&1 | tee ChaotixRecompiled/configure.log
+          grep -F "Chaotix: using pre-generated code" ChaotixRecompiled/configure.log
+          cmake --build ChaotixRecompiled/build --target chaotix --parallel 4
+
+      - name: Assemble PortMaster autoinstall ZIP
+        run: |
+          set -euo pipefail
+          package_dir=package
+          port_dir="$package_dir/chaotix-recompiled"
+          mkdir -p "$port_dir/libs"
+
+          install -m 755 ChaotixRecompiled/build/ChaotixRecompiled "$port_dir/ChaotixRecompiled"
+          cp "ports/released/chaotix-recompiled/chaotix-recompiled/port.json" "$port_dir/port.json"
+          install -m 755 "ports/released/chaotix-recompiled/Chaotix Recompiled.sh" "$package_dir/Chaotix Recompiled.sh"
+
+          for library in libSDL3.so.0 libSDL3_ttf.so.0 libSDL3_image.so.0; do
+            source="/usr/local/lib/$library"
+            destination="$port_dir/libs/$library"
+            if [ ! -e "$source" ]; then
+              echo "Missing runtime library: $source" >&2
+              exit 1
+            fi
+            install -m 755 "$source" "$destination"
+          done
+
+          if [ -f "ports/released/chaotix-recompiled/chaotix-recompiled/chaotix.gptk" ]; then
+            cp "ports/released/chaotix-recompiled/chaotix-recompiled/chaotix.gptk" "$port_dir/"
+          fi
+
+          cd "$package_dir"
+          zip -r ../chaotix-recompiled.zip "Chaotix Recompiled.sh" chaotix-recompiled
+
+      - name: Upload autoinstall ZIP
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: chaotix-recompiled-autoinstall
+          path: chaotix-recompiled.zip
+          if-no-files-found: error
+          retention-days: 14
