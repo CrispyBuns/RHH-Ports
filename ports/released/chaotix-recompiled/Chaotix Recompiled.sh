@@ -144,7 +144,7 @@ fi
 if [ -n "${GPTOKEYB:-}" ] &&
    [ -x "$GPTOKEYB" ] &&
    [ -f "$GAMEDIR/chaotix.gptk" ]; then
-    "$GPTOKEYB" "ChaotixRecompiled" -c "$GAMEDIR/chaotix.gptk" &
+    "$GPTOKEYB" -1 "ChaotixRecompiled" -c "$GAMEDIR/chaotix.gptk" &
     GPTOKEYB_PID=$!
 fi
 
