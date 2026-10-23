@@ -2,6 +2,16 @@ name: Build Chaotix Recompiled autoinstall package
 
 on:
   workflow_dispatch:
+    inputs:
+      pgo_mode:
+        description: "PGO build mode"
+        required: true
+        type: choice
+        default: release
+        options:
+          - release
+          - profile-generate
+          - profile-use
   push:
     branches:
       - chaotix-recompiled-knulli
@@ -110,11 +120,49 @@ jobs:
           done
           echo "Generated SH-2 and 68K sources are present."
 
-      - name: Build Chaotix Recompiled with LTO
+      - name: Configure PGO flags
+        id: pgo
+        env:
+          PGO_MODE: ${{ github.event.inputs.pgo_mode || 'release' }}
+        run: |
+          set -euo pipefail
+          profile_dir="$GITHUB_WORKSPACE/ports/released/chaotix-recompiled/chaotix-recompiled/debug"
+          case "$PGO_MODE" in
+            release)
+              echo "c_flags=$CFLAGS" >> "$GITHUB_OUTPUT"
+              echo "cxx_flags=$CXXFLAGS" >> "$GITHUB_OUTPUT"
+              echo "link_flags=$LDFLAGS" >> "$GITHUB_OUTPUT"
+              ;;
+            profile-generate)
+              echo "c_flags=$CFLAGS -fprofile-generate=debug" >> "$GITHUB_OUTPUT"
+              echo "cxx_flags=$CXXFLAGS -fprofile-generate=debug" >> "$GITHUB_OUTPUT"
+              echo "link_flags=$LDFLAGS -fprofile-generate=debug" >> "$GITHUB_OUTPUT"
+              ;;
+            profile-use)
+              if ! find "$profile_dir" -type f -name '*.gcda' -print -quit 2>/dev/null | grep -q .; then
+                echo "No PGO .gcda files found in $profile_dir. Copy the debug/ profile files collected from the instrumented handheld build into this folder and commit them first." >&2
+                exit 1
+              fi
+              echo "c_flags=$CFLAGS -fprofile-use=$profile_dir -fprofile-correction" >> "$GITHUB_OUTPUT"
+              echo "cxx_flags=$CXXFLAGS -fprofile-use=$profile_dir -fprofile-correction" >> "$GITHUB_OUTPUT"
+              echo "link_flags=$LDFLAGS -fprofile-use=$profile_dir -fprofile-correction" >> "$GITHUB_OUTPUT"
+              ;;
+            *) echo "Unknown PGO mode: $PGO_MODE" >&2; exit 1 ;;
+          esac
+          echo "Selected PGO mode: $PGO_MODE"
+
+      - name: Build Chaotix Recompiled with LTO and selected PGO mode
+        env:
+          PGO_C_FLAGS: ${{ steps.pgo.outputs.c_flags }}
+          PGO_CXX_FLAGS: ${{ steps.pgo.outputs.cxx_flags }}
+          PGO_LINK_FLAGS: ${{ steps.pgo.outputs.link_flags }}
         run: |
           set -euo pipefail
           cmake -S ChaotixRecompiled -B ChaotixRecompiled/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS="$PGO_C_FLAGS" \
+            -DCMAKE_CXX_FLAGS="$PGO_CXX_FLAGS" \
+            -DCMAKE_EXE_LINKER_FLAGS="$PGO_LINK_FLAGS" \
             -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
             -DCHAOTIX_BUILD_FRONTEND=ON \
             -DCHAOTIX_BUILD_TESTS=OFF \
@@ -132,6 +180,8 @@ jobs:
           package_dir=package
           port_dir="$package_dir/chaotix-recompiled"
           mkdir -p "$port_dir/libs"
+          # Keep a writable profile-output directory in the installed port.
+          mkdir -p "$port_dir/debug"
 
           install -m 755 ChaotixRecompiled/build/ChaotixRecompiled "$port_dir/ChaotixRecompiled"
           cp "ports/released/chaotix-recompiled/chaotix-recompiled/port.json" "$port_dir/port.json"
@@ -150,6 +200,9 @@ jobs:
           if [ -f "ports/released/chaotix-recompiled/chaotix-recompiled/chaotix.gptk" ]; then
             cp "ports/released/chaotix-recompiled/chaotix-recompiled/chaotix.gptk" "$port_dir/"
           fi
+
+          # Include the mode used so the profiling package is easy to identify.
+          printf 'PGO mode: %s\n' "${{ github.event.inputs.pgo_mode || 'release' }}" > "$port_dir/debug/BUILD_MODE.txt"
 
           cd "$package_dir"
           zip -r ../chaotix-recompiled.zip "Chaotix Recompiled.sh" chaotix-recompiled
