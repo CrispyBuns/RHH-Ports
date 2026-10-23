@@ -110,11 +110,12 @@ jobs:
           done
           echo "Generated SH-2 and 68K sources are present."
 
-      - name: Build Chaotix Recompiled
+      - name: Build Chaotix Recompiled with LTO
         run: |
           set -euo pipefail
           cmake -S ChaotixRecompiled -B ChaotixRecompiled/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
             -DCHAOTIX_BUILD_FRONTEND=ON \
             -DCHAOTIX_BUILD_TESTS=OFF \
             -DCHAOTIX_BUILD_TOOLS=OFF \
