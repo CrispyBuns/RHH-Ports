@@ -2,6 +2,16 @@ name: Build Phase Distorter RG35XX-H KNULLI autoinstall
 
 on:
   workflow_dispatch:
+    inputs:
+      build_mode:
+        description: "Build configuration"
+        type: choice
+        required: true
+        default: release
+        options:
+          - release
+          - profile-gen
+          - profile-use
   push:
     branches:
       - phase-distorter-autoinstall
@@ -20,6 +30,7 @@ jobs:
       CFLAGS: "-O3 -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections"
       CXXFLAGS: "-O3 -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections"
       LDFLAGS: "-Wl,--gc-sections"
+      BUILD_MODE: ${{ inputs.build_mode || 'release' }}
     steps:
       - name: Checkout RHH-Ports
         uses: actions/checkout@v7.0.1
@@ -27,14 +38,23 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip             libsdl2-dev libgl-dev libegl-dev
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip libsdl2-dev libgl-dev libegl-dev
 
-      - name: Checkout Phase Distorter fork
+      - name: Checkout Phase Distorter fork (including committed PGO data)
         uses: actions/checkout@v7.0.1
         with:
           repository: CrispyBuns/Phase-Distorter
           ref: main
           path: Phase-Distorter
+
+      - name: Validate PGO profiles when requested
+        if: env.BUILD_MODE == 'profile-use'
+        run: |
+          set -euo pipefail
+          if ! find Phase-Distorter/debug -type f -name '*.gcda' -print -quit 2>/dev/null | grep -q .; then
+            echo "::error::Profile-use requested, but no .gcda files were found in CrispyBuns/Phase-Distorter/debug/. Commit the profile-generation .gcda files there and rerun."
+            exit 1
+          fi
 
       - name: Build GL4ES for the handheld OpenGL compatibility layer
         run: |
@@ -60,10 +80,34 @@ jobs:
           test -f "$generated/us/game/runtime_index.json"
           test -f "$generated/jp/game/runtime_index.json"
 
+          extra_cxx_flags="-O3 -DNDEBUG -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections -flto -ffast-math"
+          extra_link_flags="-Wl,--gc-sections -flto"
+          profile_dir="$GITHUB_WORKSPACE/Phase-Distorter/debug"
+
+          case "$BUILD_MODE" in
+            release)
+              echo "Building standard optimized release."
+              ;;
+            profile-gen)
+              echo "Building instrumented PGO profile-generation binary."
+              extra_cxx_flags="$extra_cxx_flags -fprofile-generate=debug"
+              extra_link_flags="$extra_link_flags -fprofile-generate=debug"
+              ;;
+            profile-use)
+              echo "Building optimized binary using committed PGO data from Phase-Distorter/debug."
+              extra_cxx_flags="$extra_cxx_flags -fprofile-use=$profile_dir -fprofile-correction"
+              extra_link_flags="$extra_link_flags -fprofile-use=$profile_dir -fprofile-correction"
+              ;;
+            *)
+              echo "::error::Unknown build mode: $BUILD_MODE"
+              exit 1
+              ;;
+          esac
+
           cmake -S Phase-Distorter/cpp -B Phase-Distorter/build-knulli -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections -flto" \
-            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections -flto" \
+            -DCMAKE_CXX_FLAGS_RELEASE="$extra_cxx_flags" \
+            -DCMAKE_EXE_LINKER_FLAGS="$extra_link_flags" \
             -DEB_PREGENERATED_DIR="$generated" \
             -DEB_BUILD_TESTS=OFF \
             -DEB_BUILD_FRONTEND=ON \
@@ -78,7 +122,7 @@ jobs:
           set -euo pipefail
           package_dir="$GITHUB_WORKSPACE/package"
           port_dir="$package_dir/phase-distorter"
-          mkdir -p "$port_dir/libs"
+          mkdir -p "$port_dir/libs" "$port_dir/debug"
 
           install -m 755 Phase-Distorter/build-knulli/eb_cpp "$port_dir/eb_cpp"
           install -m 755 "ports/unreleased/phase-distorter/Phase Distorter.sh" "$package_dir/Phase Distorter.sh"
@@ -88,16 +132,34 @@ jobs:
           test -n "$gl4es_lib"
           install -m 755 "$gl4es_lib" "$port_dir/libs/libGL.so.1"
 
-          cat > "$port_dir/README.txt" <<'EOF'
+          cat > "$port_dir/README.txt" <<EOF
           Phase Distorter for RG35XX-H / KNULLI (experimental)
+          Build mode: $BUILD_MODE
           Launch Phase Distorter.sh from the Ports menu. On first launch, import
           your own supported US EarthBound or Japanese Mother 2 ROM using the
           game's setup window. ROMs and imported asset packs are not included.
-          This build targets the RG35XX-H Cortex-A53 (ARMv8-A/AArch64) and uses
-          GL4ES as an OpenGL compatibility layer. Gameplay and graphics remain
-          experimental; report issues with log.txt.
+
+          PGO workflow:
+          - profile-gen: run the game on the handheld through representative gameplay.
+            GCC profile data is written under phase-distorter/debug/.
+          - Copy all generated *.gcda files from that debug folder into
+            CrispyBuns/Phase-Distorter/debug/ and commit them.
+          - profile-use: rerun this workflow with that mode selected to build using
+            the committed profile data.
+          - release: ordinary optimized build without PGO instrumentation/use.
+
+          All modes use Cortex-A53 tuning, LTO, section garbage collection, and
+          -ffast-math. GL4ES is built without GBM/KMS/DRM support. Gameplay and
+          graphics remain experimental; report issues with log.txt.
           EOF
 
           cd "$package_dir"
           zip -r "$GITHUB_WORKSPACE/phase-distorter-knulli.zip" "Phase Distorter.sh" phase-distorter
           unzip -t "$GITHUB_WORKSPACE/phase-distorter-knulli.zip"
+
+      - name: Upload install ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-distorter-knulli-${{ env.BUILD_MODE }}
+          path: phase-distorter-knulli.zip
+          if-no-files-found: error
