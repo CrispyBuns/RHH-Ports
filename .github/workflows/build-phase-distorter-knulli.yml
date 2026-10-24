@@ -27,7 +27,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip             libsdl2-dev libgl-dev libegl-dev libgbm-dev libdrm-dev
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip             libsdl2-dev libgl-dev libegl-dev
 
       - name: Checkout Phase Distorter fork
         uses: actions/checkout@v7.0.1
@@ -44,7 +44,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_FLAGS="-O3 -march=armv8-a -mtune=cortex-a53" \
             -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a -mtune=cortex-a53" \
-            -DNOX11=ON -DGLX_STUBS=ON -DEGL_WRAPPER=ON -DGBM=ON
+            -DNOX11=ON -DGLX_STUBS=ON -DEGL_WRAPPER=ON
           cmake --build GL4ES/build --parallel 4
           gl4es_lib="$(find GL4ES -name 'libGL.so.1' -type f -print -quit)"
           test -n "$gl4es_lib"
