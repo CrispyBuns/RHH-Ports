@@ -1,0 +1,103 @@
+name: Build Phase Distorter RG35XX-H KNULLI autoinstall
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - phase-distorter-autoinstall
+    paths:
+      - '.github/workflows/build-phase-distorter-knulli.yml'
+      - 'ports/unreleased/phase-distorter/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    env:
+      # RG35XX-H uses a quad-core Cortex-A53 (ARMv8-A, AArch64).
+      CFLAGS: "-O3 -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections"
+      CXXFLAGS: "-O3 -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections"
+      LDFLAGS: "-Wl,--gc-sections"
+    steps:
+      - name: Checkout RHH-Ports
+        uses: actions/checkout@v7.0.1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip             libsdl2-dev libgl-dev libegl-dev libgbm-dev libdrm-dev
+
+      - name: Checkout Phase Distorter fork
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: CrispyBuns/Phase-Distorter
+          ref: main
+          path: Phase-Distorter
+
+      - name: Build GL4ES for the handheld OpenGL compatibility layer
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/ptitSeb/gl4es.git GL4ES
+          cmake -S GL4ES -B GL4ES/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS="-O3 -march=armv8-a -mtune=cortex-a53" \
+            -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a -mtune=cortex-a53" \
+            -DNOX11=ON -DGLX_STUBS=ON -DEGL_WRAPPER=ON -DGBM=ON
+          cmake --build GL4ES/build --parallel 4
+          gl4es_lib="$(find GL4ES -name 'libGL.so.1' -type f -print -quit)"
+          test -n "$gl4es_lib"
+          echo "GL4ES library built at $gl4es_lib"
+
+      - name: Configure and build Phase Distorter
+        run: |
+          set -euo pipefail
+          generated="$GITHUB_WORKSPACE/Phase-Distorter/generated"
+          test -f "$generated/program_sources.cmake"
+          test -f "$generated/game_runtime_sources.cmake"
+          test -f "$generated/game_runtime_manifest.json"
+          test -f "$generated/us/game/runtime_index.json"
+          test -f "$generated/jp/game/runtime_index.json"
+
+          cmake -S Phase-Distorter/cpp -B Phase-Distorter/build-knulli -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections -flto" \
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections -flto" \
+            -DEB_PREGENERATED_DIR="$generated" \
+            -DEB_BUILD_TESTS=OFF \
+            -DEB_BUILD_FRONTEND=ON \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+          cmake --build Phase-Distorter/build-knulli --parallel 4
+          test -x Phase-Distorter/build-knulli/eb_cpp
+          file Phase-Distorter/build-knulli/eb_cpp
+          readelf -h Phase-Distorter/build-knulli/eb_cpp | grep -E 'Machine:.*AArch64'
+
+      - name: Assemble and validate PortMaster autoinstall ZIP
+        run: |
+          set -euo pipefail
+          package_dir="$GITHUB_WORKSPACE/package"
+          port_dir="$package_dir/phase-distorter"
+          mkdir -p "$port_dir/libs"
+
+          install -m 755 Phase-Distorter/build-knulli/eb_cpp "$port_dir/eb_cpp"
+          install -m 755 "ports/unreleased/phase-distorter/Phase Distorter.sh" "$package_dir/Phase Distorter.sh"
+          install -m 644 "ports/unreleased/phase-distorter/phase-distorter/port.json" "$port_dir/port.json"
+
+          gl4es_lib="$(find GL4ES -name 'libGL.so.1' -type f -print -quit)"
+          test -n "$gl4es_lib"
+          install -m 755 "$gl4es_lib" "$port_dir/libs/libGL.so.1"
+
+          cat > "$port_dir/README.txt" <<'EOF'
+          Phase Distorter for RG35XX-H / KNULLI (experimental)
+          Launch Phase Distorter.sh from the Ports menu. On first launch, import
+          your own supported US EarthBound or Japanese Mother 2 ROM using the
+          game's setup window. ROMs and imported asset packs are not included.
+          This build targets the RG35XX-H Cortex-A53 (ARMv8-A/AArch64) and uses
+          GL4ES as an OpenGL compatibility layer. Gameplay and graphics remain
+          experimental; report issues with log.txt.
+          EOF
+
+          cd "$package_dir"
+          zip -r "$GITHUB_WORKSPACE/phase-distorter-knulli.zip" "Phase Distorter.sh" phase-distorter
+          unzip -t "$GITHUB_WORKSPACE/phase-distorter-knulli.zip"
