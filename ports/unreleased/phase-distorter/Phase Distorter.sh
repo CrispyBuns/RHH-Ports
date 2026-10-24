@@ -25,7 +25,8 @@ get_controls
 GAMEDIR="/$directory/ports/phase-distorter"
 GAME="$GAMEDIR/eb_cpp"
 LOGFILE="$GAMEDIR/log.txt"
-mkdir -p "$GAMEDIR"
+DEBUGDIR="$GAMEDIR/debug"
+mkdir -p "$GAMEDIR" "$DEBUGDIR"
 
 if [ ! -x "$GAME" ]; then
     pm_show_error "Phase Distorter is missing or not executable. Reinstall the port."
@@ -44,6 +45,8 @@ export LIBGL_ES=2
 export LIBGL_GL=21
 export LIBGL_FB=4
 
+# The profile-gen build uses a relative profile directory. Run from the game
+# directory so GCC writes its .gcda files into this port's debug folder.
 GPTOKEYB_PID=""
 finish_portmaster() {
     if [ -n "$GPTOKEYB_PID" ]; then
