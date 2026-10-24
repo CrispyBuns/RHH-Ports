@@ -1,6 +1,7 @@
 name: Build Phase Distorter RG35XX-H KNULLI autoinstall
 
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     branches:
