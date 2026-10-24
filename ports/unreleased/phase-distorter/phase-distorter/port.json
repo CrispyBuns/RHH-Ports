@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "name": "phase-distorter-knulli.zip",
+  "items": [
+    "Phase Distorter.sh",
+    "phase-distorter"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Phase Distorter",
+    "porter": ["CrispyBuns"],
+    "desc": "Experimental native EarthBound and Mother 2 port for RG35XX-H using GL4ES.",
+    "desc_md": null,
+    "inst": "Supply your own supported US EarthBound or Japanese Mother 2 ROM and import it through the game's setup window. No ROM or imported asset pack is included.",
+    "inst_md": null,
+    "genres": ["role playing"],
+    "image": null,
+    "rtr": false,
+    "exp": true,
+    "runtime": [],
+    "store": [],
+    "availability": "free",
+    "reqs": [],
+    "arch": ["aarch64"],
+    "min_glibc": null
+  }
+}
