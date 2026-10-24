@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       port:
-        description: "Which port to consider (all = every port in registry)"
+        description: "Which port to consider (all = every registry port; phase-distorter = KNULLI autoinstall ZIP)"
         type: string
         required: false
         default: "all"
@@ -52,7 +52,11 @@ jobs:
           : "${SELECTED:=all}"
           : "${FORCE:=false}"
 
-          if [[ "$SELECTED" == "all" ]]; then
+          if [[ "$SELECTED" == "phase-distorter" ]]; then
+            echo "Phase Distorter is built by its dedicated KNULLI autoinstall workflow."
+            echo "matrix=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [[ "$SELECTED" == "all" ]]; then
             ids=$(jq -r '.ports | keys[]' buildtools/registry.json)
           else
             if ! jq -e --arg id "$SELECTED" '.ports[$id]' buildtools/registry.json > /dev/null; then
@@ -160,6 +164,14 @@ jobs:
           fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "Matrix: $matrix"
+
+  # Build Phase Distorter through its dedicated KNULLI autoinstall workflow
+  # when selected from the Build Ports manual-dispatch input.
+  phase-distorter-autoinstall:
+    if: inputs.port == 'phase-distorter'
+    uses: ./.github/workflows/Phase-distorter-knulli.yml
+    permissions:
+      contents: read
 
   # ────────────────────────────────────────────────────────────────────
   # Build the shared rhh-base image once, push to GHCR
