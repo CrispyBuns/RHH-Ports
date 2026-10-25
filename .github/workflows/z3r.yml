@@ -1,5 +1,5 @@
 
-name: Build Z3R Beta (RG35XX-H ARM64)
+name: Build Z3R-Beta RG35XX-H ARM64 Auto-Install
 
 on:
   workflow_dispatch:
@@ -9,8 +9,9 @@ permissions:
 
 jobs:
   build:
-    name: Build and package Z3R Beta
+    name: Compile and package Z3R-Beta
     runs-on: ubuntu-24.04-arm
+
     container:
       image: ubuntu:20.04
 
@@ -20,70 +21,117 @@ jobs:
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y \
             build-essential \
-            cmake \
-            git \
-            make \
+            libsdl2-dev \
+            python3 \
             pkg-config \
             zip \
             unzip \
-            ca-certificates \
-            file
+            file \
+            binutils \
+            ca-certificates
 
       - name: Checkout RHH-Ports
         uses: actions/checkout@v4
 
-      - name: Checkout Z3R Beta
+      - name: Checkout Z3R-Beta
         uses: actions/checkout@v4
         with:
           repository: CrispyBuns/Z3R-Beta
           ref: main
-          path: Z3R-Beta
+          path: z3r-beta
+          submodules: recursive
 
-      - name: Verify ARM64 build environment
-        run: |
-          uname -m
-          test "$(uname -m)" = "aarch64"
-          gcc --version
-
-      - name: Compile Z3R Beta
-        working-directory: Z3R-Beta
-        run: |
-          make clean || true
-          make rg35xxx-h \
-            CFLAGS="-O3 -mcpu=cortex-a53 -mtune=cortex-a53 -ffast-math -flto=auto" \
-            LDFLAGS="-flto=auto"
-
-      - name: Verify compiled output
-        working-directory: Z3R-Beta
-        run: |
-          find . -maxdepth 3 -type f -executable -print
-          find . -maxdepth 3 -type f -name 'z3r*' -print
-
-      - name: Package PortMaster autoinstall ZIP
+      - name: Verify ARM64 environment and source headers
+        shell: bash
         run: |
           set -eu
 
-          mkdir -p package
+          echo "Architecture: $(uname -m)"
+          test "$(uname -m)" = "aarch64"
 
-          # Copy the compiled game executable and required port files here.
-          # Adjust these paths to match the actual Z3R Beta output and
-          # PortMaster launcher layout.
-          find Z3R-Beta -maxdepth 3 -type f -executable \
-            ! -path '*/.git/*' \
-            -exec cp --parents {} package/ \;
+          test -f z3r-beta/Makefile
+          test -f z3r-beta/snes/ppu.h
+          test -f z3r-beta/third_party/opus-1.3.1-stripped/opus_decoder_amalgam.c
 
-          if [ -z "$(find package -type f -print -quit)" ]; then
-            echo "No compiled files found to package."
-            exit 1
+          echo "Required source files are present."
+
+      - name: Compile Z3R-Beta
+        shell: bash
+        working-directory: z3r-beta
+        run: |
+          set -eu
+
+          make clean
+          make rg35xxx-h
+
+          test -x zelda3
+          file zelda3
+          readelf -h zelda3 | grep -E 'Class:|Machine:'
+
+      - name: Prepare PortMaster auto-install package
+        shell: bash
+        run: |
+          set -eu
+
+          PACKAGE="$GITHUB_WORKSPACE/package"
+          PORT="$PACKAGE/z3r-beta"
+
+          mkdir -p "$PORT"
+
+          # Compiled ARM64 game executable.
+          install -m 755 z3r-beta/zelda3 "$PORT/zelda3"
+
+          # PortMaster metadata and runtime configuration.
+          install -m 644 \
+            buildtools/ports/z3r-beta/z3r-beta/src/port.json \
+            "$PORT/port.json"
+
+          install -m 644 \
+            buildtools/ports/z3r-beta/z3r-beta/src/zelda3.user.ini \
+            "$PORT/zelda3.user.ini"
+
+          # Include documentation when available.
+          if [ -f buildtools/ports/z3r-beta/z3r-beta/src/README.md ]; then
+            install -m 644 \
+              buildtools/ports/z3r-beta/z3r-beta/src/README.md \
+              "$PORT/README.md"
           fi
 
-          cd package
-          zip -r ../Z3R-Beta-RG35XX-H-ARM64.zip .
-          cd ..
+          # Use the repository's existing PortMaster launcher.
+          install -m 755 \
+            buildtools/ports/z3r-beta/z3r-beta/src/Z3R-Beta.sh \
+            "$PACKAGE/Z3R-Beta.sh"
 
-      - name: Upload build artifact
+          # Required personal game data is intentionally not bundled.
+          cat > "$PORT/INSTALL-README.txt" <<'EOF'
+          Z3R-Beta - RG35XX-H / KNULLI
+
+          Architecture: ARM64 / AArch64
+          CPU target: Cortex-A53
+          Build: -O3, Cortex-A53 tuning, fast-math and LTO
+          Opus decoder: fast-math disabled for this translation unit
+
+          You must provide your own legally obtained game data.
+          Generate zelda3_assets.dat using the project's supported
+          asset extraction process, then place it in this directory.
+
+          Do not rename the zelda3 executable.
+          Runtime logs and saves are kept with the port.
+          EOF
+
+          # Verify the final package contains the expected files.
+          test -x "$PORT/zelda3"
+          test -x "$PACKAGE/Z3R-Beta.sh"
+          test -f "$PORT/port.json"
+          test -f "$PORT/zelda3.user.ini"
+
+          cd "$PACKAGE"
+          zip -r "$GITHUB_WORKSPACE/Z3R-Beta-RG35XX-H-AutoInstall.zip" \
+            Z3R-Beta.sh z3r-beta
+
+      - name: Upload PortMaster auto-install ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Z3R-Beta-RG35XX-H-ARM64
-          path: Z3R-Beta-RG35XX-H-ARM64.zip
+          name: Z3R-Beta-RG35XX-H-AutoInstall
+          path: Z3R-Beta-RG35XX-H-AutoInstall.zip
           if-no-files-found: error
