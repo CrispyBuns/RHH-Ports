@@ -1,0 +1,89 @@
+
+name: Build Z3R Beta (RG35XX-H ARM64)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and package Z3R Beta
+    runs-on: ubuntu-24.04-arm
+    container:
+      image: ubuntu:20.04
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            build-essential \
+            cmake \
+            git \
+            make \
+            pkg-config \
+            zip \
+            unzip \
+            ca-certificates \
+            file
+
+      - name: Checkout RHH-Ports
+        uses: actions/checkout@v4
+
+      - name: Checkout Z3R Beta
+        uses: actions/checkout@v4
+        with:
+          repository: CrispyBuns/Z3R-Beta
+          ref: main
+          path: Z3R-Beta
+
+      - name: Verify ARM64 build environment
+        run: |
+          uname -m
+          test "$(uname -m)" = "aarch64"
+          gcc --version
+
+      - name: Compile Z3R Beta
+        working-directory: Z3R-Beta
+        run: |
+          make clean || true
+          make rg35xxx-h \
+            CFLAGS="-O3 -mcpu=cortex-a53 -mtune=cortex-a53 -ffast-math -flto=auto" \
+            LDFLAGS="-flto=auto"
+
+      - name: Verify compiled output
+        working-directory: Z3R-Beta
+        run: |
+          find . -maxdepth 3 -type f -executable -print
+          find . -maxdepth 3 -type f -name 'z3r*' -print
+
+      - name: Package PortMaster autoinstall ZIP
+        run: |
+          set -eu
+
+          mkdir -p package
+
+          # Copy the compiled game executable and required port files here.
+          # Adjust these paths to match the actual Z3R Beta output and
+          # PortMaster launcher layout.
+          find Z3R-Beta -maxdepth 3 -type f -executable \
+            ! -path '*/.git/*' \
+            -exec cp --parents {} package/ \;
+
+          if [ -z "$(find package -type f -print -quit)" ]; then
+            echo "No compiled files found to package."
+            exit 1
+          fi
+
+          cd package
+          zip -r ../Z3R-Beta-RG35XX-H-ARM64.zip .
+          cd ..
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Z3R-Beta-RG35XX-H-ARM64
+          path: Z3R-Beta-RG35XX-H-ARM64.zip
+          if-no-files-found: error
