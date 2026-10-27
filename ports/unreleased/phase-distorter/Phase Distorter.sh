@@ -42,7 +42,8 @@ if [ -n "${LD_LIBRARY_PATH:-}" ]; then
 else
     export LD_LIBRARY_PATH="$GAMEDIR/libs"
 fi
-export LIBGL_ES=2
+# Test the GLES 3 backend while retaining the OpenGL 2.1 compatibility API.
+export LIBGL_ES=3
 export LIBGL_GL=21
 export LIBGL_FB=4
 
