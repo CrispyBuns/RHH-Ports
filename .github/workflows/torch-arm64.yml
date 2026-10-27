@@ -1,0 +1,72 @@
+name: Build Torch ARM64 (Ubuntu 20.04)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Torch for ARM64
+    runs-on: ubuntu-24.04-arm
+    container:
+      image: ubuntu:20.04
+
+    steps:
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            cmake \
+            git \
+            libbz2-dev \
+            ninja-build \
+            zlib1g-dev
+
+      - name: Check ARM64 Ubuntu 20.04 environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "aarch64"
+          grep -q '^VERSION_ID="20.04"$' /etc/os-release
+
+      - name: Checkout latest Torch commit
+        uses: actions/checkout@v5
+        with:
+          repository: HarbourMasters/Torch
+          ref: main
+          path: Torch
+
+      - name: Configure and build Release binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S Torch -B Torch/build-arm64 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUSE_STANDALONE=ON \
+            -DBUILD_UI=OFF
+          cmake --build Torch/build-arm64 --parallel "$(nproc)"
+
+      - name: Verify and package binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          BINARY="Torch/build-arm64/torch"
+          test -x "$BINARY"
+          readelf -h "$BINARY" | grep -q 'Machine:.*AArch64'
+          mkdir -p dist
+          tar -C Torch/build-arm64 -czf dist/torch-arm64-ubuntu-20.04.tar.gz torch
+          tar -tzf dist/torch-arm64-ubuntu-20.04.tar.gz
+
+      - name: Upload downloadable build
+        uses: actions/upload-artifact@v6
+        with:
+          name: torch-arm64-ubuntu-20.04
+          path: dist/torch-arm64-ubuntu-20.04.tar.gz
+          if-no-files-found: error
+          retention-days: 14
