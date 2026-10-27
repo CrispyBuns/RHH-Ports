@@ -44,10 +44,13 @@ jobs:
           git clone --depth 1 https://github.com/ptitSeb/gl4es.git GL4ES
           cmake -S GL4ES -B GL4ES/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_FLAGS="-O3 -march=armv8-a -mtune=cortex-a53 -ffast-math" \
-            -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a -mtune=cortex-a53 -ffast-math" \
-            -DNOX11=ON -DGLX_STUBS=ON -DEGL_WRAPPER=ON
-          cmake --build GL4ES/build --parallel 4
+            -DCMAKE_C_FLAGS="-O3 -march=armv8-a -mtune=cortex-a53 -ffast-math -ffunction-sections -fdata-sections" \
+            -DCMAKE_CXX_FLAGS="-O3 -march=armv8-a -mtune=cortex-a53 -ffast-math -ffunction-sections -fdata-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-Wl,--gc-sections" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--gc-sections" \
+            -DNOX11=ON -DGLX_STUBS=ON -DEGL_WRAPPER=ON \
+            2>&1 | tee GL4ES/configure.log
+          cmake --build GL4ES/build --parallel 4 2>&1 | tee GL4ES/build.log
           gl4es_lib="$(find GL4ES -type f -name 'libGL.so.1' -print -quit)"
           test -n "$gl4es_lib"
           echo "GL4ES library: $gl4es_lib"
@@ -78,7 +81,7 @@ jobs:
             -DEB_BUILD_TESTS=OFF \
             -DEB_BUILD_FRONTEND=ON \
             -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON 2>&1 | tee Phase-Distorter/configure-knulli.log
-          cmake --build Phase-Distorter/build-knulli --parallel 4
+          cmake --build Phase-Distorter/build-knulli --parallel 4 2>&1 | tee Phase-Distorter/build-knulli.log
           test -x Phase-Distorter/build-knulli/eb_cpp
           file Phase-Distorter/build-knulli/eb_cpp
           readelf -h Phase-Distorter/build-knulli/eb_cpp | grep -E 'Machine:.*AArch64'
@@ -107,6 +110,7 @@ jobs:
 
           This build is tuned for the Cortex-A53 with -O3, -ffast-math, LTO,
           and section garbage collection. GL4ES is built without GBM/KMS/DRM.
+          Runtime output is written to /roms/ports/phase-distorter/log.txt.
           Experimental.
           EOF
 
@@ -120,4 +124,17 @@ jobs:
           name: phase-distorter-knulli-autoinstall
           path: phase-distorter-knulli.zip
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: phase-distorter-knulli-build-logs
+          path: |
+            GL4ES/configure.log
+            GL4ES/build.log
+            Phase-Distorter/configure-knulli.log
+            Phase-Distorter/build-knulli.log
+          if-no-files-found: warn
           retention-days: 14
