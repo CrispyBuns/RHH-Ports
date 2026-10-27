@@ -39,6 +39,12 @@ jobs:
           ref: main
           path: Phase-Distorter
 
+      - name: Verify checked-out Phase Distorter revision
+        run: |
+          set -euo pipefail
+          git -C Phase-Distorter log -1 --format='Phase-Distorter source commit: %H%nSubject: %s'
+          grep -n 'GL_PROC_FALLBACK(PFNGLGENFRAMEBUFFERSEXTPROC, GenFramebuffersEXT, GenFramebuffers)' Phase-Distorter/cpp/src/scene_effects_renderer.cpp
+
       - name: Build GL4ES compatibility library
         run: |
           set -euo pipefail
