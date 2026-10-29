@@ -86,7 +86,7 @@ rep(pc, 'Uint32 window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE |\n     
         'Uint32 window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;')
 rep(pc, '''    p->gl = SDL_GL_CreateContext(p->window);
     if (!p->gl) {
-        fprintf(stderr, "[launcher] SDL_GL_CreateContext failed: %s\\\\n", SDL_GetError());
+        fprintf(stderr, "[launcher] SDL_GL_CreateContext failed: %s\\n", SDL_GetError());
         SDL_DestroyWindow(p->window);
         p->window = NULL;
         if (s_quit_sdl) SDL_Quit();
@@ -97,7 +97,7 @@ rep(pc, '''    p->gl = SDL_GL_CreateContext(p->window);
     SDL_GL_SetSwapInterval(1);
 ''', '''    p->renderer = SDL_CreateRenderer(p->window, -1, SDL_RENDERER_SOFTWARE);
     if (!p->renderer) {
-        fprintf(stderr, "[launcher] SDL_CreateRenderer(software) failed: %s\\\\n", SDL_GetError());
+        fprintf(stderr, "[launcher] SDL_CreateRenderer(software) failed: %s\\n", SDL_GetError());
         SDL_DestroyWindow(p->window);
         p->window = NULL;
         if (s_quit_sdl) SDL_Quit();
