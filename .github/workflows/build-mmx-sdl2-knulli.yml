@@ -118,6 +118,8 @@ jobs:
           # Native SDL controller handling; no gameplay remapping.
           EOF
           install -m 755 MegaManXSNESRecomp/build/MegaManXSNESRecomp package/mmx/MegaManXSNESRecomp
+          # Ship the project config beside the executable so OutputMethod=SDL is the default on first boot.
+          install -m 644 MegaManXSNESRecomp/config.ini package/mmx/config.ini
           cp -f rom-staging/* package/mmx/
 
           cat > package/mmx/port.json <<'EOF'
