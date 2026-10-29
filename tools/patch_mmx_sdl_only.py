@@ -122,7 +122,7 @@ rep(pc, '''    if (p->gl)     { SDL_GL_DeleteContext(p->gl); p->gl = NULL; }
 ''')
 # Remove the legacy GLES hint; this build creates no GL context.
 source = pc.read_text()
-source = re.sub(r'(?s)#if defined\\(LNG_GLES2\\) && defined\\(_WIN32\\).*?#endif\\n', '', source, count=1)
+source = re.sub(r'(?s)#if defined\(LNG_GLES2\) && defined\(_WIN32\).*?#endif\n', '', source, count=1)
 pc.write_text(source)
 
 # SDL texture-backed launcher artwork; uintptr_t preserves pointer width.
