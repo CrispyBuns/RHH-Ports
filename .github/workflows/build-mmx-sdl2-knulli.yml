@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euxo pipefail
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip python3 libsdl2-dev
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip python3 python3-pil libsdl2-dev
 
       - name: Checkout Mega Man X SNES Recomp
         uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
           path: private-mmx-roms
           persist-credentials: false
 
-      - name: Stage MMX1 game ROM and MMX3 extra-content ROM
+      - name: Stage MMX1 game ROM and MMX3 donor ROM
         run: |
           set -euxo pipefail
           mkdir -p rom-staging
@@ -55,8 +55,8 @@ jobs:
           echo "ROM files found:"
           find rom-staging -maxdepth 1 -type f -printf '%f\n'
           test "$(find rom-staging -maxdepth 1 -type f \( -iname '*.sfc' -o -iname '*.smc' \) | wc -l)" -gt 0
-          # The primary ROM must be MMX1. MMX3 is staged alongside it for the
-          # recomp's extra-content/mod workflow and is not launched as a second game.
+          # The primary ROM must be MMX1. MMX3 is only staged as a donor ROM; the
+          # game extracts/uses X3 assets through its in-game Mods UI, not regen.sh.
           if ! find rom-staging -maxdepth 1 -type f \( -iname '*mega*man*x*' -o -iname '*megaman*x*' -o -iname '*mmx1*' -o -iname '*rockman*x*' \) | grep -Eiv 'x2|x3' | grep -q .; then
             echo "WARNING: Could not identify an MMX1 ROM by filename. Ensure the private ROM repo uses a clear MMX1 filename."
           fi
@@ -130,7 +130,7 @@ jobs:
               "title": "Mega Man X SNES Recomp",
               "porter": ["CrispyBuns"],
               "desc": "Mega Man X SNES Recomp for RG35XX-H / KNULLI; MMX3 extra content staged with MMX1",
-              "inst": "Provide a supported Mega Man X (MMX1) ROM as the main game. The MMX3 ROM is included in the folder for the recomp's extra-content/mod system.",
+              "inst": "Provide a supported Mega Man X (MMX1) ROM as the main game. The MMX3 ROM is staged in the folder as a donor ROM; select it in the game's Mods UI to extract/use X3 content.",
               "genres": ["action"],
               "availability": "paid",
               "arch": ["aarch64"],
@@ -157,7 +157,7 @@ jobs:
           echo "--- files ---"
           ls -la
           
-          # Select MMX1 only as the main game; leave MMX3 beside it for extra content.
+          # Select MMX1 only as the main game. X3 assets are selected/extracted through the game's Mods UI.
           ROM=""
           for candidate in ./*.sfc ./*.smc; do
             [ -f "$candidate" ] || continue
@@ -179,7 +179,7 @@ jobs:
           fi
           
           echo "Main game ROM: $ROM"
-          echo "MMX3 extra-content ROM(s) remain in the port folder."
+          echo "MMX3 donor ROM(s) are staged; select the X3 ROM in Mods to activate X3 content."
           echo "--- game output begins ---"
           export SDL_VIDEODRIVER="fbcon"
           export SDL_AUDIODRIVER="alsa"
