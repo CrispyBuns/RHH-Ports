@@ -18,15 +18,15 @@ env:
 jobs:
   build:
     runs-on: ubuntu-20.04-arm
-
     steps:
       - name: Checkout RHH-Ports
         uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
+          set -euxo pipefail
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip libsdl2-dev
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip python3 libsdl2-dev
 
       - name: Checkout Mega Man X SNES Recomp
         uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
           submodules: recursive
           path: MegaManXSNESRecomp
 
-      - name: Configure ARM64 SDL2 release build
+      - name: Configure ARM64 SDL2 + A53 + LTO
         run: |
           set -euxo pipefail
           cmake -S MegaManXSNESRecomp -B MegaManXSNESRecomp/build -G Ninja \
@@ -48,32 +48,96 @@ jobs:
             -DSNESRECOMP_FRAME_IMPL=LLE \
             -DSNESRECOMP_APU_TIME_IMPL=LLE \
             -DSNESRECOMP_CRC32_IMPL=BYTE \
+            -DMMX_RASTER_IMPL=LLE \
+            -DMMX_RASTER_FULL_COPY=OFF \
+            -DMMX_STAGE_TILE_REUSE=ON \
+            -DMMX_NATIVE_ROW_PLAN=OFF \
+            -DMMX_NATIVE_BG_SPANS=OFF \
+            -DBUILD_TESTING=OFF \
+            -DCMAKE_C_FLAGS="${CFLAGS} -flto=auto" \
+            -DCMAKE_CXX_FLAGS="${CXXFLAGS} -flto=auto" \
+            -DCMAKE_EXE_LINKER_FLAGS="${LDFLAGS} -flto=auto" \
             -DCMAKE_BUILD_RPATH='$ORIGIN/libs' \
             -DCMAKE_INSTALL_RPATH='$ORIGIN/libs'
 
-      - name: Build
+      - name: Build MegaManXSNESRecomp
         run: |
           set -euxo pipefail
-          cmake --build MegaManXSNESRecomp/build --parallel 4
+          cmake --build MegaManXSNESRecomp/build --target MegaManXSNESRecomp --parallel 4
+          test -x MegaManXSNESRecomp/build/MegaManXSNESRecomp
+          file MegaManXSNESRecomp/build/MegaManXSNESRecomp
 
-      - name: Verify binary and prepare port
+      - name: Assemble PortMaster autoinstall package
         run: |
           set -euxo pipefail
-          mkdir -p package/mmx/libs
-          BIN="$(find MegaManXSNESRecomp/build -maxdepth 3 -type f -perm -111 | grep -E '/(MegaManXSNESRecomp|mmx|game)$' | head -n1 || true)"
-          if [ -z "$BIN" ]; then
-            BIN="$(find MegaManXSNESRecomp/build -maxdepth 4 -type f -perm -111 | head -n1)"
+          rm -rf package
+          mkdir -p package/mmx
+          install -m 755 MegaManXSNESRecomp/build/MegaManXSNESRecomp package/mmx/MegaManXSNESRecomp
+
+          # Any ROMs committed to this RHH-Ports branch are staged into mmx/.
+          if [ -d mmx ]; then
+            find mmx -maxdepth 1 -type f \( -iname '*.sfc' -o -iname '*.smc' \) -exec cp -f {} package/mmx/ \;
           fi
-          test -n "$BIN"
-          install -m 755 "$BIN" package/mmx/MegaManXSNESRecomp
-          printf '%s\n' 'Place your legally obtained Mega Man X ROM in the mmx folder as instructed by the port launcher.' > package/mmx/README-ROM.txt
-          printf '%s\n' '#!/bin/sh' 'PORTDIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"' 'cd "$PORTDIR/mmx"' 'export SDL_VIDEODRIVER="fbcon"' 'export SDL_AUDIODRIVER="alsa"' 'export SDL_RENDER_DRIVER="software"' 'exec ./MegaManXSNESRecomp "$@" >> "$PORTDIR/mmx/log.txt" 2>&1' > package/Mega Man X.sh
-          chmod 755 package/Mega\ Man\ X.sh
-          printf '%s\n' '{' '  "version": 4,' '  "name": "mmx-snes-recomp.zip",' '  "items": ["Mega Man X.sh", "mmx"],' '  "items_opt": [],' '  "attr": {' '    "title": "Mega Man X SNES Recomp",' '    "porter": ["CrispyBuns"],' '    "desc": "Mega Man X SNES Recomp for RG35XX-H / KNULLI",' '    "inst": "Place your own supported Mega Man X ROM in the mmx folder.",' '    "genres": ["action"],' '    "arch": ["aarch64"],' '    "availability": "free"' '  }' '}' > package/mmx/port.json
-          cd package
-          zip -r ../mmx-snes-recomp.zip "Mega Man X.sh" mmx
 
-      - name: Upload autoinstall package
+          cat > package/mmx/port.json <<'EOF'
+{
+  "version": 4,
+  "name": "mmx-snes-recomp.zip",
+  "items": ["Mega Man X.sh", "mmx"],
+  "items_opt": [],
+  "attr": {
+    "title": "Mega Man X SNES Recomp",
+    "porter": ["CrispyBuns"],
+    "desc": "Mega Man X SNES Recomp for RG35XX-H / KNULLI",
+    "inst": "Place a supported Mega Man X ROM in the mmx folder. The launcher automatically selects the first .sfc or .smc ROM.",
+    "genres": ["action"],
+    "availability": "paid",
+    "arch": ["aarch64"],
+    "min_glibc": "2.31"
+  }
+}
+EOF
+
+          cat > 'package/Mega Man X.sh' <<'EOF'
+#!/bin/sh
+set -u
+PORTDIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+cd "$PORTDIR/mmx" || exit 1
+LOG="$PORTDIR/mmx/log.txt"
+: > "$LOG"
+exec >> "$LOG" 2>&1
+
+echo "[Mega Man X] launcher started"
+echo "Firmware: KNULLI / RG35XX-H"
+echo "Architecture: $(uname -m)"
+echo "Kernel: $(uname -sr)"
+echo "SDL backend: SDL2"
+echo "CPU tuning: Cortex-A53 / armv8-a / LTO"
+echo "--- files ---"
+ls -la
+
+ROM=""
+for candidate in ./*.sfc ./*.smc; do
+  if [ -f "$candidate" ]; then ROM="$candidate"; break; fi
+done
+if [ -z "$ROM" ]; then
+  echo "ERROR: no .sfc or .smc Mega Man X ROM found in $PORTDIR/mmx"
+  exit 1
+fi
+
+echo "ROM: $ROM"
+echo "--- game output begins ---"
+export SDL_VIDEODRIVER="fbcon"
+export SDL_AUDIODRIVER="alsa"
+export SDL_RENDER_DRIVER="software"
+exec ./MegaManXSNESRecomp --rom "$ROM" "$@"
+EOF
+          chmod 755 'package/Mega Man X.sh'
+
+          cd package
+          zip -r ../mmx-snes-recomp.zip 'Mega Man X.sh' mmx
+
+      - name: Upload autoinstall ZIP
         uses: actions/upload-artifact@v4
         with:
           name: mmx-snes-recomp-autoinstall
