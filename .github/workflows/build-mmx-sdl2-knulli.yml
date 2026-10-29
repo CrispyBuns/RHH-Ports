@@ -36,6 +36,31 @@ jobs:
           submodules: recursive
           path: MegaManXSNESRecomp
 
+      # Configure these repository secrets in CrispyBuns/RHH-Ports:
+      # MMX_ROM_REPO = owner/repository containing your private ROM files
+      # MMX_ROM_TOKEN = fine-grained PAT with Contents: Read-only access to that repository
+      - name: Checkout private ROM repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.MMX_ROM_REPO }}
+          token: ${{ secrets.MMX_ROM_TOKEN }}
+          path: private-mmx-roms
+          persist-credentials: false
+
+      - name: Stage MMX1 game ROM and MMX3 extra-content ROM
+        run: |
+          set -euxo pipefail
+          mkdir -p rom-staging
+          find private-mmx-roms -type f \( -iname '*.sfc' -o -iname '*.smc' \) -not -path '*/.git/*' -exec cp -f {} rom-staging/ \;
+          echo "ROM files found:"
+          find rom-staging -maxdepth 1 -type f -printf '%f\n'
+          test "$(find rom-staging -maxdepth 1 -type f \( -iname '*.sfc' -o -iname '*.smc' \) | wc -l)" -gt 0
+          # The primary ROM must be MMX1. MMX3 is staged alongside it for the
+          # recomp's extra-content/mod workflow and is not launched as a second game.
+          if ! find rom-staging -maxdepth 1 -type f \( -iname '*mega*man*x*' -o -iname '*megaman*x*' -o -iname '*mmx1*' -o -iname '*rockman*x*' \) | grep -Eiv 'x2|x3' | grep -q .; then
+            echo "WARNING: Could not identify an MMX1 ROM by filename. Ensure the private ROM repo uses a clear MMX1 filename."
+          fi
+
       - name: Configure ARM64 SDL2 + A53 + LTO
         run: |
           set -euxo pipefail
@@ -73,11 +98,7 @@ jobs:
           rm -rf package
           mkdir -p package/mmx
           install -m 755 MegaManXSNESRecomp/build/MegaManXSNESRecomp package/mmx/MegaManXSNESRecomp
-
-          # Any ROMs committed to this RHH-Ports branch are staged into mmx/.
-          if [ -d mmx ]; then
-            find mmx -maxdepth 1 -type f \( -iname '*.sfc' -o -iname '*.smc' \) -exec cp -f {} package/mmx/ \;
-          fi
+          cp -f rom-staging/* package/mmx/
 
           cat > package/mmx/port.json <<'EOF'
 {
@@ -88,8 +109,8 @@ jobs:
   "attr": {
     "title": "Mega Man X SNES Recomp",
     "porter": ["CrispyBuns"],
-    "desc": "Mega Man X SNES Recomp for RG35XX-H / KNULLI",
-    "inst": "Place a supported Mega Man X ROM in the mmx folder. The launcher automatically selects the first .sfc or .smc ROM.",
+    "desc": "Mega Man X SNES Recomp for RG35XX-H / KNULLI; MMX3 extra content staged with MMX1",
+    "inst": "Provide a supported Mega Man X (MMX1) ROM as the main game. The MMX3 ROM is included in the folder for the recomp's extra-content/mod system.",
     "genres": ["action"],
     "availability": "paid",
     "arch": ["aarch64"],
@@ -116,16 +137,29 @@ echo "CPU tuning: Cortex-A53 / armv8-a / LTO"
 echo "--- files ---"
 ls -la
 
+# Select MMX1 only as the main game; leave MMX3 beside it for extra content.
 ROM=""
 for candidate in ./*.sfc ./*.smc; do
-  if [ -f "$candidate" ]; then ROM="$candidate"; break; fi
+  [ -f "$candidate" ] || continue
+  lower="$(printf '%s' "$candidate" | tr '[:upper:]' '[:lower:]')"
+  case "$lower" in
+    *x3*|*mmx3*|*x2*|*mmx2*) continue ;;
+  esac
+  case "$lower" in
+    *mega*man*x*|*megaman*x*|*mmx1*|*rockman*x*)
+      ROM="$candidate"
+      break
+      ;;
+  esac
 done
 if [ -z "$ROM" ]; then
-  echo "ERROR: no .sfc or .smc Mega Man X ROM found in $PORTDIR/mmx"
+  echo "ERROR: could not identify the MMX1 main ROM. Name it clearly (e.g. Mega Man X (USA).sfc)."
+  echo "MMX3 files are kept in this folder for extra content and are not selected as the main game."
   exit 1
 fi
 
-echo "ROM: $ROM"
+echo "Main game ROM: $ROM"
+echo "MMX3 extra-content ROM(s) remain in the port folder."
 echo "--- game output begins ---"
 export SDL_VIDEODRIVER="fbcon"
 export SDL_AUDIODRIVER="alsa"
