@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "name": "megamanx-recompiled-rg35xx-h.zip",
+  "items": [
+    "Mega Man X Recompiled.sh",
+    "megamanxrecompiled"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Mega Man X Recompiled",
+    "porter": [
+      "CrispyBuns"
+    ],
+    "desc": "Experimental native ARM64 Mega Man X Recompiled port for RG35XX-H and PortMaster.",
+    "desc_md": null,
+    "inst": "Requires your own Mega Man X (USA) (Rev 1) ROM. After installation, place it at /roms/ports/megamanxrecompiled/mmx/mmx.sfc. Optional X2/X3 ROMs are not included. The autoinstall ZIP contains no ROMs.",
+    "inst_md": null,
+    "genres": [
+      "action",
+      "platformer"
+    ],
+    "image": null,
+    "rtr": false,
+    "exp": true,
+    "runtime": [],
+    "store": [],
+    "availability": "free",
+    "reqs": [],
+    "arch": [
+      "aarch64"
+    ],
+    "min_glibc": "2.31"
+  }
+}

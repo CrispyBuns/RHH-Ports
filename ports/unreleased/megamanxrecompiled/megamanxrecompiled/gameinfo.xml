@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<gamelist>
+  <game>
+    <path>./Mega Man X Recompiled.sh</path>
+    <name>Mega Man X Recompiled</name>
+    <desc>Experimental ARM64 PortMaster build. Requires a user-supplied Mega Man X (USA) (Rev 1) ROM.</desc>
+    <releasedate>19931217T000000</releasedate>
+    <developer>mstan, CrispyBuns</developer>
+    <genre>platformer</genre>
+  </game>
+</gamelist>
