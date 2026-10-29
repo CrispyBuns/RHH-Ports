@@ -1,0 +1,151 @@
+name: Build Mega Man X Recompiled RG35XX-H autoinstall
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rom-source:
+    name: Check private ROM source configuration
+    runs-on: ubuntu-24.04-arm
+    container:
+      image: ubuntu:20.04
+    outputs:
+      ready: ${{ steps.config.outputs.ready }}
+    steps:
+      - name: Check required repository settings
+        id: config
+        shell: bash
+        env:
+          MMX_ROM_REPO: ${{ vars.MMX_ROM_REPO }}
+          MMX_ROM_REPO_TOKEN: ${{ secrets.MMX_ROM_REPO_TOKEN }}
+        run: |
+          if [[ -n "${MMX_ROM_REPO:-}" && -n "${MMX_ROM_REPO_TOKEN:-}" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Set Actions variable MMX_ROM_REPO and secret MMX_ROM_REPO_TOKEN to a private repository containing mmx/ ROM files."
+          fi
+
+  build:
+    name: Build and package for RG35XX-H
+    needs: rom-source
+    if: needs.rom-source.outputs.ready == 'true'
+    runs-on: ubuntu-24.04-arm
+    container:
+      image: ubuntu:20.04
+    env:
+      CFLAGS: "-O3 -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections"
+      CXXFLAGS: "-O3 -march=armv8-a -mtune=cortex-a53 -ffunction-sections -fdata-sections"
+      LDFLAGS: "-Wl,--gc-sections"
+
+    steps:
+      - name: Check out RHH-Ports
+        uses: actions/checkout@v7.0.1
+
+      - name: Confirm Ubuntu 20.04 ARM64 build container
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '^VERSION_ID="20.04"' /etc/os-release
+          test "$(dpkg --print-architecture)" = arm64
+          test "$(uname -m)" = aarch64
+
+      - name: Check out private ROM inputs into mmx/
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: ${{ vars.MMX_ROM_REPO }}
+          token: ${{ secrets.MMX_ROM_REPO_TOKEN }}
+          path: mmx-private
+          sparse-checkout: mmx
+          sparse-checkout-cone-mode: true
+
+      - name: Stage ROM inputs for compilation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d mmx-private/mmx
+          mkdir -p mmx
+          find mmx-private/mmx -maxdepth 1 -type f \( -iname '*.sfc' -o -iname '*.smc' \) -exec cp -- {} mmx/ \;
+          test -s "mmx/Mega Man X (USA) (Rev 1).sfc" || {
+            echo "The private ROM repository must contain mmx/Mega Man X (USA) (Rev 1).sfc" >&2
+            exit 1
+          }
+
+      - name: Install Ubuntu 20.04 build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates curl git python3 python3-pip \
+            pkg-config libsdl2-dev libgl1-mesa-dev zip
+          python3 -m pip install --no-cache-dir cmake==3.31.6 ninja==1.11.1.4
+
+      - name: Install Rust for source regeneration
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Check out Mega Man X Recompiled source
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: CrispyBuns/MegaManXSNESRecomp-RG35XXX-H
+          ref: main
+          submodules: recursive
+          path: MegaManXSNESRecomp
+
+      - name: Regenerate and build the ARM64 game
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd MegaManXSNESRecomp
+          bash tools/build-linux-dev.sh \
+            --type Release \
+            --build-dir build-rg35xx-h \
+            --target MegaManXSNESRecomp \
+            --sdl SDL2 \
+            --jobs 4 \
+            --fresh \
+            --version 1.0.0 \
+            --rom "$GITHUB_WORKSPACE/mmx/Mega Man X (USA) (Rev 1).sfc"
+
+      - name: Assemble PortMaster autoinstall ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          port_source="$GITHUB_WORKSPACE/ports/unreleased/megamanxrecompiled"
+          package_dir="$GITHUB_WORKSPACE/package"
+          port_dir="$package_dir/megamanxrecompiled"
+          game_dir="$GITHUB_WORKSPACE/MegaManXSNESRecomp"
+
+          mkdir -p "$port_dir/mmx"
+          install -m 755 "$game_dir/build-rg35xx-h/MegaManXSNESRecomp" "$port_dir/MegaManXSNESRecomp"
+          install -m 644 "$port_source/megamanxrecompiled/port.json" "$port_dir/port.json"
+          install -m 644 "$port_source/megamanxrecompiled/gameinfo.xml" "$port_dir/gameinfo.xml"
+          install -m 644 "$port_source/megamanxrecompiled/README.md" "$port_dir/README.md"
+          install -m 644 "$port_source/megamanxrecompiled/mmx/README.txt" "$port_dir/mmx/README.txt"
+          install -m 644 "$game_dir/LICENSE" "$port_dir/LICENSE.txt"
+          install -m 755 "$port_source/Mega Man X Recompiled.sh" "$package_dir/Mega Man X Recompiled.sh"
+
+          if find "$package_dir" -type f \( -iname '*.sfc' -o -iname '*.smc' \) -print -quit | grep -q .; then
+            echo "Refusing to place ROM files in the autoinstall ZIP." >&2
+            exit 1
+          fi
+
+          cd "$package_dir"
+          zip -9 -r "$GITHUB_WORKSPACE/megamanx-recompiled-rg35xx-h.zip" \
+            "Mega Man X Recompiled.sh" megamanxrecompiled
+
+      - name: Upload PortMaster autoinstall ZIP
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: megamanx-recompiled-rg35xx-h-autoinstall
+          path: megamanx-recompiled-rg35xx-h.zip
+          if-no-files-found: error
+          retention-days: 14
