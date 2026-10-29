@@ -101,71 +101,71 @@ jobs:
           cp -f rom-staging/* package/mmx/
 
           cat > package/mmx/port.json <<'EOF'
-{
-  "version": 4,
-  "name": "mmx-snes-recomp.zip",
-  "items": ["Mega Man X.sh", "mmx"],
-  "items_opt": [],
-  "attr": {
-    "title": "Mega Man X SNES Recomp",
-    "porter": ["CrispyBuns"],
-    "desc": "Mega Man X SNES Recomp for RG35XX-H / KNULLI; MMX3 extra content staged with MMX1",
-    "inst": "Provide a supported Mega Man X (MMX1) ROM as the main game. The MMX3 ROM is included in the folder for the recomp's extra-content/mod system.",
-    "genres": ["action"],
-    "availability": "paid",
-    "arch": ["aarch64"],
-    "min_glibc": "2.31"
-  }
-}
-EOF
+          {
+            "version": 4,
+            "name": "mmx-snes-recomp.zip",
+            "items": ["Mega Man X.sh", "mmx"],
+            "items_opt": [],
+            "attr": {
+              "title": "Mega Man X SNES Recomp",
+              "porter": ["CrispyBuns"],
+              "desc": "Mega Man X SNES Recomp for RG35XX-H / KNULLI; MMX3 extra content staged with MMX1",
+              "inst": "Provide a supported Mega Man X (MMX1) ROM as the main game. The MMX3 ROM is included in the folder for the recomp's extra-content/mod system.",
+              "genres": ["action"],
+              "availability": "paid",
+              "arch": ["aarch64"],
+              "min_glibc": "2.31"
+            }
+          }
+          EOF
 
           cat > 'package/Mega Man X.sh' <<'EOF'
-#!/bin/sh
-set -u
-PORTDIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-cd "$PORTDIR/mmx" || exit 1
-LOG="$PORTDIR/mmx/log.txt"
-: > "$LOG"
-exec >> "$LOG" 2>&1
-
-echo "[Mega Man X] launcher started"
-echo "Firmware: KNULLI / RG35XX-H"
-echo "Architecture: $(uname -m)"
-echo "Kernel: $(uname -sr)"
-echo "SDL backend: SDL2"
-echo "CPU tuning: Cortex-A53 / armv8-a / LTO"
-echo "--- files ---"
-ls -la
-
-# Select MMX1 only as the main game; leave MMX3 beside it for extra content.
-ROM=""
-for candidate in ./*.sfc ./*.smc; do
-  [ -f "$candidate" ] || continue
-  lower="$(printf '%s' "$candidate" | tr '[:upper:]' '[:lower:]')"
-  case "$lower" in
-    *x3*|*mmx3*|*x2*|*mmx2*) continue ;;
-  esac
-  case "$lower" in
-    *mega*man*x*|*megaman*x*|*mmx1*|*rockman*x*)
-      ROM="$candidate"
-      break
-      ;;
-  esac
-done
-if [ -z "$ROM" ]; then
-  echo "ERROR: could not identify the MMX1 main ROM. Name it clearly (e.g. Mega Man X (USA).sfc)."
-  echo "MMX3 files are kept in this folder for extra content and are not selected as the main game."
-  exit 1
-fi
-
-echo "Main game ROM: $ROM"
-echo "MMX3 extra-content ROM(s) remain in the port folder."
-echo "--- game output begins ---"
-export SDL_VIDEODRIVER="fbcon"
-export SDL_AUDIODRIVER="alsa"
-export SDL_RENDER_DRIVER="software"
-exec ./MegaManXSNESRecomp --rom "$ROM" "$@"
-EOF
+          #!/bin/sh
+          set -u
+          PORTDIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+          cd "$PORTDIR/mmx" || exit 1
+          LOG="$PORTDIR/mmx/log.txt"
+          : > "$LOG"
+          exec >> "$LOG" 2>&1
+          
+          echo "[Mega Man X] launcher started"
+          echo "Firmware: KNULLI / RG35XX-H"
+          echo "Architecture: $(uname -m)"
+          echo "Kernel: $(uname -sr)"
+          echo "SDL backend: SDL2"
+          echo "CPU tuning: Cortex-A53 / armv8-a / LTO"
+          echo "--- files ---"
+          ls -la
+          
+          # Select MMX1 only as the main game; leave MMX3 beside it for extra content.
+          ROM=""
+          for candidate in ./*.sfc ./*.smc; do
+            [ -f "$candidate" ] || continue
+            lower="$(printf '%s' "$candidate" | tr '[:upper:]' '[:lower:]')"
+            case "$lower" in
+              *x3*|*mmx3*|*x2*|*mmx2*) continue ;;
+            esac
+            case "$lower" in
+              *mega*man*x*|*megaman*x*|*mmx1*|*rockman*x*)
+                ROM="$candidate"
+                break
+                ;;
+            esac
+          done
+          if [ -z "$ROM" ]; then
+            echo "ERROR: could not identify the MMX1 main ROM. Name it clearly (e.g. Mega Man X (USA).sfc)."
+            echo "MMX3 files are kept in this folder for extra content and are not selected as the main game."
+            exit 1
+          fi
+          
+          echo "Main game ROM: $ROM"
+          echo "MMX3 extra-content ROM(s) remain in the port folder."
+          echo "--- game output begins ---"
+          export SDL_VIDEODRIVER="fbcon"
+          export SDL_AUDIODRIVER="alsa"
+          export SDL_RENDER_DRIVER="software"
+          exec ./MegaManXSNESRecomp --rom "$ROM" "$@"
+          EOF
           chmod 755 'package/Mega Man X.sh'
 
           cd package
