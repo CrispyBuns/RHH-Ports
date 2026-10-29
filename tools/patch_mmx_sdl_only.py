@@ -35,7 +35,7 @@ rep(host, '''  RendererApply(RendererChoice());
   g_renderer_funcs = kSdlRendererFuncs;
 ''')
 rep(runner / "runner.cmake", '''    if(NOT ANDROID)
-        snesrecomp_target_opengl(\${target})
+        snesrecomp_target_opengl(${target})
     endif()
 ''', '')
 
@@ -227,17 +227,17 @@ rep(imgui, '''        glViewport(0, 0, p->pixel_w, p->pixel_h);
 
 # The launcher compiles the SDL renderer backend instead of ImGui OpenGL3.
 cm = ui / "recomp_ui.cmake"
-rep(cm, 'include("\${RECOMP_UI_ROOT}/cmake/recomp_gl.cmake")\n', '')
-rep(cm, '\${RUI_IMGUI}/backends/imgui_impl_opengl3.cpp',
-        '\${RUI_IMGUI}/backends/imgui_impl_sdlrenderer2.cpp')
+rep(cm, 'include("${RECOMP_UI_ROOT}/cmake/recomp_gl.cmake")\n', '')
+rep(cm, '${RUI_IMGUI}/backends/imgui_impl_opengl3.cpp',
+        '${RUI_IMGUI}/backends/imgui_impl_sdlrenderer2.cpp')
 old = re.search(r'    # OpenGL: the ImGui GL3 backend.*?    endif\(\)\n\n    # ---- color emoji providers', cm.read_text(), re.S)
 if not old: raise SystemExit("Patch mismatch: could not find recomp-ui OpenGL link block")
 s = cm.read_text()
 s = s[:old.start()] + '''    # SDL_Renderer is the only presentation backend; no OpenGL/EGL is linked.
     if(WIN32)
-        target_link_libraries(\${TGT} PRIVATE ws2_32)
+        target_link_libraries(${TGT} PRIVATE ws2_32)
     else()
-        target_link_libraries(\${TGT} PRIVATE \${CMAKE_DL_LIBS})
+        target_link_libraries(${TGT} PRIVATE ${CMAKE_DL_LIBS})
     endif()
 
     # ---- color emoji providers''' + s[old.end():]
