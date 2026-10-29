@@ -3,7 +3,9 @@
 The manually started workflow builds the game and PortMaster ZIP on an ARM64
 runner, inside an Ubuntu 20.04 ARM64 container. The game is compiled against
 SDL2. GitHub's hosted runner label is ubuntu-24.04-arm; the job container
-provides the Ubuntu 20.04 build environment.
+provides the Ubuntu 20.04 build environment. It installs Python 3.10 in a
+virtual environment because the source build script requires Python 3.9 or
+newer while Ubuntu 20.04's system Python is older.
 
 The full source regeneration needs the Mega Man X (USA) (Rev 1) ROM. Keep ROMs
 in a separate private GitHub repository with this layout:
