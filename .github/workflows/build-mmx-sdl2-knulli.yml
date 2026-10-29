@@ -113,6 +113,10 @@ jobs:
           set -euxo pipefail
           rm -rf package
           mkdir -p package/mmx
+          # Empty mapping: native SDL keeps gameplay input; gptokeyb supplies Start+Select exit only.
+          cat > 'package/mmx/Mega Man X.gptk' <<'EOF'
+          # Native SDL controller handling; no gameplay remapping.
+          EOF
           install -m 755 MegaManXSNESRecomp/build/MegaManXSNESRecomp package/mmx/MegaManXSNESRecomp
           cp -f rom-staging/* package/mmx/
 
@@ -180,7 +184,26 @@ jobs:
           export SDL_VIDEODRIVER="fbcon"
           export SDL_AUDIODRIVER="alsa"
           export SDL_RENDER_DRIVER="software"
-          exec ./MegaManXSNESRecomp --rom "$ROM" "$@"
+          # Keep PortMaster's Start+Select kill switch active without remapping gameplay buttons.
+          GPTOKEYB_BIN="${GPTOKEYB:-}"
+          if [ -z "$GPTOKEYB_BIN" ]; then
+            for candidate in "${PORTMASTER:-}/gptokeyb" "${PORTMASTER_DIR:-}/gptokeyb" /userdata/system/.local/share/PortMaster/gptokeyb /roms/ports/PortMaster/gptokeyb; do
+              if [ -n "$candidate" ] && [ -x "$candidate" ]; then GPTOKEYB_BIN="$candidate"; break; fi
+            done
+          fi
+          GPTOKEYB_PID=""
+          if [ -n "$GPTOKEYB_BIN" ] && [ -x "$GPTOKEYB_BIN" ]; then
+            "$GPTOKEYB_BIN" "MegaManXSNESRecomp" -c "Mega Man X.gptk" &
+            GPTOKEYB_PID=$!
+            echo "gptokeyb started; Start+Select exit hotkey enabled."
+          else
+            echo "WARNING: gptokeyb not found; Start+Select exit hotkey unavailable."
+          fi
+          ./MegaManXSNESRecomp --rom "$ROM" "$@"
+          GAME_STATUS=$?
+          if [ -n "$GPTOKEYB_PID" ]; then kill "$GPTOKEYB_PID" 2>/dev/null || true; wait "$GPTOKEYB_PID" 2>/dev/null || true; fi
+          echo "Game exited with status $GAME_STATUS"
+          exit "$GAME_STATUS"
           EOF
           chmod 755 'package/Mega Man X.sh'
 
