@@ -61,6 +61,22 @@ jobs:
             echo "WARNING: Could not identify an MMX1 ROM by filename. Ensure the private ROM repo uses a clear MMX1 filename."
           fi
 
+      - name: Generate MMX1 recompilation sources from verified ROM
+        run: |
+          set -euxo pipefail
+          MMX1_ROM="$(find rom-staging -maxdepth 1 -type f \\( -iname '*mega*man*x*' -o -iname '*megaman*x*' -o -iname '*mmx1*' -o -iname '*rockman*x*' \\) -print | grep -Eiv 'x2|x3' | head -n 1 || true)"
+          if [ -z "$MMX1_ROM" ]; then
+            echo "ERROR: MMX1 ROM not found. Expected a clearly named Mega Man X (USA) ROM in the private ROM repository."
+            exit 1
+          fi
+          echo "Generating source from: $MMX1_ROM"
+          install -m 644 "$MMX1_ROM" MegaManXSNESRecomp/mmx.sfc
+          cd MegaManXSNESRecomp
+          bash tools/regen.sh usa --no-tests
+          test -s src/gen/dispatch_v2.c
+          echo "Generated source files:"
+          find src/gen -maxdepth 1 -type f | head -n 20
+
       - name: Configure ARM64 SDL2 + A53 + LTO
         run: |
           set -euxo pipefail
