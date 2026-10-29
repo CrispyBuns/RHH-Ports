@@ -36,6 +36,18 @@ jobs:
           submodules: recursive
           path: MegaManXSNESRecomp
 
+      - name: Patch all rendering paths to SDL software
+        run: |
+          set -euxo pipefail
+          python3 tools/patch_mmx_sdl_only.py MegaManXSNESRecomp
+          # Fail the build early if any compiled launcher/game path still references GL.
+          ! grep -nE 'OpenGLRenderer_Create|snesrecomp_target_opengl|imgui_impl_opengl3\.cpp|ImGui_ImplOpenGL3_|SDL_GL_CreateContext|glViewport\(|glClearColor\(|glClear\(' \
+            MegaManXSNESRecomp/snesrecomp/runner/src/desktop/host_main.c \
+            MegaManXSNESRecomp/snesrecomp/runner/runner.cmake \
+            MegaManXSNESRecomp/recomp-ui/recomp_ui.cmake \
+            MegaManXSNESRecomp/recomp-ui/src/common/launcher_platform_sdl2.c \
+            MegaManXSNESRecomp/recomp-ui/src/common/backends/imgui/launcher_imgui.cpp
+
       # Configure these repository secrets in CrispyBuns/RHH-Ports:
       # MMX_ROM_REPO = owner/repository containing your private ROM files
       # MMX_ROM_TOKEN = fine-grained PAT with Contents: Read-only access to that repository
@@ -107,6 +119,11 @@ jobs:
           cmake --build MegaManXSNESRecomp/build --target MegaManXSNESRecomp --parallel 4
           test -x MegaManXSNESRecomp/build/MegaManXSNESRecomp
           file MegaManXSNESRecomp/build/MegaManXSNESRecomp
+          echo "Checking executable and transitive libraries for OpenGL dependencies"
+          if ldd MegaManXSNESRecomp/build/MegaManXSNESRecomp | grep -E 'lib(OpenGL|GLX|GL|EGL|GLESv2)\.so'; then
+            echo "ERROR: SDL-only build still depends on an OpenGL/EGL library"
+            exit 1
+          fi
 
       - name: Assemble PortMaster autoinstall package
         run: |
