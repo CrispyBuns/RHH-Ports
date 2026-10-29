@@ -120,6 +120,10 @@ rep(pc, '''    if (p->gl)     { SDL_GL_DeleteContext(p->gl); p->gl = NULL; }
     }
     if (p->window) { SDL_DestroyWindow(p->window); p->window = NULL; }
 ''')
+# Remove the legacy GLES hint; this build creates no GL context.
+source = pc.read_text()
+source = re.sub(r'(?s)#if defined\\(LNG_GLES2\\) && defined\\(_WIN32\\).*?#endif\\n', '', source, count=1)
+pc.write_text(source)
 
 # SDL texture-backed launcher artwork; uintptr_t preserves pointer width.
 gh = ui / "src/common/launcher_gl.h"
@@ -227,6 +231,9 @@ rep(imgui, '''        glViewport(0, 0, p->pixel_w, p->pixel_h);
 
 # The launcher compiles the SDL renderer backend instead of ImGui OpenGL3.
 cm = ui / "recomp_ui.cmake"
+# The PSX-specific menu provider has its own OpenGL renderer and is unused by this SNES title.
+rep(cm, '        ${RUI_SRC}/consoles/psx/psx_menu_provider.cpp       # psxrecomp in-game menu provider (psx_menu_host.h)\n', '')
+rep(cm, '        ${RUI_SRC}/consoles/psx/psx_menu_provider_imgui.cpp # its SDL input + ImGui presentation\n', '')
 rep(cm, 'include("${RECOMP_UI_ROOT}/cmake/recomp_gl.cmake")\n', '')
 rep(cm, '${RUI_IMGUI}/backends/imgui_impl_opengl3.cpp',
         '${RUI_IMGUI}/backends/imgui_impl_sdlrenderer2.cpp')
