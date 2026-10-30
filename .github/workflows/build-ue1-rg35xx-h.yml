@@ -48,7 +48,10 @@ jobs:
         endif()'''
           if old not in s:
               raise SystemExit("Could not locate the upstream 64-bit architecture guard; refusing an unsafe patch.")
-          p.write_text(s.replace(old, new, 1))
+          s = s.replace(old, new, 1)
+          # The upstream GCC path forces -O2; use -O3 for this handheld build.
+          s = s.replace("add_compile_options(-O2)", "add_compile_options(-O3)", 1)
+          p.write_text(s)
           PY
 
       - name: Configure SDL2 + OpenGL ES 2 + A53 + LTO
@@ -78,8 +81,11 @@ jobs:
         run: |
           set -euxo pipefail
           cmake --build UE1/build --parallel 4
-          cmake --install UE1/build --prefix "$GITHUB_WORKSPACE/stage"
-          find stage -maxdepth 3 -type f -print
+          # This project installs modules into its build-tree configuration folder.
+          test -x UE1/build/Release/Unreal.bin
+          mkdir -p stage
+          cp -a UE1/build/Release/. stage/
+          find stage -maxdepth 2 -type f -print
           test -x stage/Unreal.bin
 
       - name: Assemble PortMaster autoinstall package
