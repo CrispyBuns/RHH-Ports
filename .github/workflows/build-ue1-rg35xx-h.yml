@@ -1,0 +1,218 @@
+name: Build Unreal Engine 1 v200 - RG35XX-H ARM64
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    env:
+      CFLAGS: "-O3 -mcpu=cortex-a53 -ffunction-sections -fdata-sections -fno-strict-aliasing"
+      CXXFLAGS: "-O3 -mcpu=cortex-a53 -ffunction-sections -fdata-sections -fno-strict-aliasing"
+      LDFLAGS: "-flto=auto -Wl,--gc-sections"
+    steps:
+      - name: Checkout RHH-Ports
+        uses: actions/checkout@v4
+
+      - name: Install ARM64 build dependencies
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip             libsdl2-dev libopenal-dev libxmp-dev libgles2-mesa-dev libegl1-mesa-dev
+
+      - name: Checkout UE1 source
+        uses: actions/checkout@v4
+        with:
+          repository: CrispyBuns/UE1-RG35XXX-G
+          ref: master
+          path: UE1
+
+      - name: Enable AArch64 in the upstream CMake configuration
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("UE1/Source/CMakeLists.txt")
+          s = p.read_text()
+          old = '''  else()
+            message(FATAL_ERROR "64-bit platforms are currently not supported. If you're building on Windows with MSVC, try -A Win32.")
+          endif()
+        endif()'''
+          new = '''  else()
+            # RG35XX-H ARM64 build: retain the detected 64-bit architecture.
+            message(STATUS "Building native 64-bit target: ${TARGET_ARCH}")
+          endif()
+        endif()'''
+          if old not in s:
+              raise SystemExit("Could not locate the upstream 64-bit architecture guard; refusing an unsafe patch.")
+          p.write_text(s.replace(old, new, 1))
+          PY
+
+      - name: Configure SDL2 + OpenGL ES 2 + A53 + LTO
+        run: |
+          set -euxo pipefail
+          cmake -S UE1/Source -B UE1/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+            -DUSE_SDL=ON \
+            -DBUILD_EDITOR=OFF \
+            -DBUILD_SOFTDRV=OFF \
+            -DBUILD_NOPENGLDRV=OFF \
+            -DBUILD_NOPENGLESDRV=ON \
+            -DBUILD_NULLSOUNDDRV=ON \
+            -DBUILD_NOPENALDRV=ON \
+            -DBUILD_WINDRV=OFF \
+            -DBUILD_STATIC=OFF \
+            -DCMAKE_C_FLAGS="${CFLAGS} -flto=auto" \
+            -DCMAKE_CXX_FLAGS="${CXXFLAGS} -flto=auto" \
+            -DCMAKE_EXE_LINKER_FLAGS="${LDFLAGS}" \
+            -DCMAKE_SHARED_LINKER_FLAGS="${LDFLAGS}" \
+            -DCMAKE_INSTALL_PREFIX=/usr
+
+      - name: Build and install UE1
+        run: |
+          set -euxo pipefail
+          cmake --build UE1/build --parallel 4
+          cmake --install UE1/build --prefix "$GITHUB_WORKSPACE/stage"
+          find stage -maxdepth 3 -type f -print
+          test -x stage/Unreal.bin
+
+      - name: Assemble PortMaster autoinstall package
+        run: |
+          set -euxo pipefail
+          rm -rf package
+          mkdir -p package/unreal/System
+
+          # Runtime modules and executable are installed together so UE1 can load its drivers.
+          cp -a stage/. package/unreal/System/
+          strip --strip-unneeded package/unreal/System/Unreal.bin || true
+          find package/unreal/System -maxdepth 1 -type f -name '*.so' -exec strip --strip-unneeded {} + || true
+
+          cat > package/unreal/README-assets.txt <<'EOF'
+          REQUIRED GAME DATA (NOT INCLUDED)
+          ---------------------------------
+          This package contains the ARM64 engine/runtime only.
+          Copy the original Unreal v200 retail or v205 demo game data into this
+          folder: ports/unreal/System/
+
+          Keep the engine files supplied by this package. Copy the original game
+          data files (packages, maps, textures, sounds and configuration) into
+          System without replacing Unreal.bin or the UE1 driver .so files.
+          The source project documents v200 retail and v205 demo as supported.
+          EOF
+
+          cat > 'package/Unreal.sh' <<'EOF'
+          #!/bin/bash
+          # PORTMASTER: unreal.zip, Unreal.sh
+          set -u
+
+          export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+          if [ -d "/opt/system/Tools/PortMaster" ]; then
+              controlfolder="/opt/system/Tools/PortMaster"
+          elif [ -d "/opt/tools/PortMaster" ]; then
+              controlfolder="/opt/tools/PortMaster"
+          elif [ -d "$XDG_DATA_HOME/PortMaster" ]; then
+              controlfolder="$XDG_DATA_HOME/PortMaster"
+          else
+              controlfolder="/roms/ports/PortMaster"
+          fi
+
+          if [ ! -r "$controlfolder/control.txt" ]; then
+              echo "PortMaster control.txt not found: $controlfolder/control.txt" >&2
+              exit 1
+          fi
+          source "$controlfolder/control.txt"
+          [ -f "$controlfolder/mod_${CFW_NAME}.txt" ] && source "$controlfolder/mod_${CFW_NAME}.txt"
+          get_controls
+
+          GAMEDIR="/$directory/ports/unreal"
+          SYSTEMDIR="$GAMEDIR/System"
+          GAME="$SYSTEMDIR/Unreal.bin"
+          LOGFILE="$GAMEDIR/log.txt"
+          mkdir -p "$SYSTEMDIR"
+          cd "$SYSTEMDIR" || exit 1
+          : > "$LOGFILE"
+          exec >> "$LOGFILE" 2>&1
+
+          echo "[UE1] launcher started"
+          echo "Firmware: ${CFW_NAME:-unknown}"
+          echo "Architecture: $(uname -m)"
+          echo "Kernel: $(uname -sr)"
+          echo "Renderer: SDL2 + OpenGL ES 2"
+          echo "CPU target: Cortex-A53 / AArch64"
+          echo "Engine directory: $SYSTEMDIR"
+
+          if [ ! -x "$GAME" ]; then
+              pm_show_error "Unreal ARM64 engine binary is missing. Reinstall the port."
+              pm_finish
+              exit 1
+          fi
+          if [ ! -f "$SYSTEMDIR/Engine.u" ]; then
+              pm_show_error "Game data not found. Copy your legally obtained Unreal v200 or v205 demo System game data into ports/unreal/System. See README-assets.txt."
+              pm_finish
+              exit 1
+          fi
+
+          if [ -n "${LD_LIBRARY_PATH:-}" ]; then
+              export LD_LIBRARY_PATH="$SYSTEMDIR:$LD_LIBRARY_PATH"
+          else
+              export LD_LIBRARY_PATH="$SYSTEMDIR"
+          fi
+          export SDL_GAMECONTROLLERCONFIG="${sdl_controllerconfig:-}"
+          export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-fbcon}"
+          export SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-alsa}"
+
+          GPTOKEYB_PID=""
+          if [ -n "${GPTOKEYB:-}" ] && [ -x "$GPTOKEYB" ]; then
+              "$GPTOKEYB" "Unreal.bin" &
+              GPTOKEYB_PID=$!
+          fi
+
+          pm_platform_helper "$GAME" >/dev/null 2>&1 || true
+          "$GAME"
+          GAME_STATUS=$?
+
+          if [ -n "$GPTOKEYB_PID" ]; then
+              kill "$GPTOKEYB_PID" 2>/dev/null || true
+              wait "$GPTOKEYB_PID" 2>/dev/null || true
+          fi
+          pm_finish
+          echo "[UE1] game exited with status $GAME_STATUS"
+          exit "$GAME_STATUS"
+          EOF
+          chmod 755 'package/Unreal.sh'
+
+          cat > package/unreal/port.json <<'EOF'
+          {
+            "version": 4,
+            "name": "unreal.zip",
+            "items": ["Unreal.sh", "unreal"],
+            "items_opt": [],
+            "attr": {
+              "title": "Unreal Engine 1",
+              "porter": ["CrispyBuns"],
+              "desc": "Unreal Engine 1 v200 ARM64 port for RG35XX-H / KNULLI. Requires original Unreal v200 or v205 demo game data.",
+              "inst": "Copy your legally obtained Unreal v200 retail or v205 demo System game data into ports/unreal/System. Do not overwrite the engine executable or driver libraries.",
+              "genres": ["action"],
+              "availability": "free",
+              "arch": ["aarch64"],
+              "min_glibc": "2.35"
+            }
+          }
+          EOF
+
+          cd package
+          zip -r ../unreal-rg35xx-h-autoinstall.zip 'Unreal.sh' unreal
+
+      - name: Upload PortMaster autoinstall ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: unreal-rg35xx-h-autoinstall
+          path: unreal-rg35xx-h-autoinstall.zip
+          if-no-files-found: error
+          retention-days: 14
