@@ -81,6 +81,15 @@ jobs:
           done < <(find package/unreal/System -maxdepth 1 -type f \( -name '*.bin' -o -name '*.so' \) -print0)
 
           cp -a UE1/Engine/Config/. package/unreal/System/
+          # Bundle non-base audio runtimes; SDL2 and GLES remain firmware-provided.
+          for library in libopenal.so.1 libxmp.so.4; do
+            source_path=$(ldconfig -p | awk -v name="$library" '$1 == name { print $NF; exit }')
+            if [ -z "$source_path" ] || [ ! -f "$source_path" ]; then
+              echo "Required runtime library not found: $library" >&2
+              exit 1
+            fi
+            cp -L "$source_path" "package/unreal/System/$library"
+          done
           cat > package/unreal/README-assets.txt <<'EOF'
           REQUIRED GAME DATA (NOT INCLUDED)
           ---------------------------------
@@ -147,9 +156,9 @@ jobs:
           fi
 
           if [ -n "${LD_LIBRARY_PATH:-}" ]; then
-              export LD_LIBRARY_PATH="$SYSTEMDIR:$LD_LIBRARY_PATH"
+              export LD_LIBRARY_PATH="$SYSTEMDIR:$SYSTEMDIR/libs:$LD_LIBRARY_PATH"
           else
-              export LD_LIBRARY_PATH="$SYSTEMDIR"
+              export LD_LIBRARY_PATH="$SYSTEMDIR:$SYSTEMDIR/libs"
           fi
           export SDL_GAMECONTROLLERCONFIG="${sdl_controllerconfig:-}"
 
@@ -175,7 +184,7 @@ jobs:
 
           cat > package/unreal/port.json <<'EOF'
           {
-            "version": 4,
+            "version": 1,
             "name": "unreal.zip",
             "items": ["Unreal.sh", "unreal"],
             "items_opt": [],
