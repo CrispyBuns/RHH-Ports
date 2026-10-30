@@ -27,38 +27,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CrispyBuns/UE1-RG35XXX-G
-          ref: master
+          ref: rg35xx-h-arm64
           path: UE1
-
-      - name: Enable AArch64 in the upstream CMake configuration
-        run: |
-          set -euxo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("UE1/Source/CMakeLists.txt")
-          s = p.read_text()
-          old = '''  else()
-            message(FATAL_ERROR "64-bit platforms are currently not supported. If you're building on Windows with MSVC, try -A Win32.")
-          endif()
-        endif()'''
-          new = '''  else()
-            # RG35XX-H ARM64 build: retain the detected 64-bit architecture.
-            message(STATUS "Building native 64-bit target: ${TARGET_ARCH}")
-          endif()
-        endif()'''
-          if old not in s:
-              raise SystemExit("Could not locate the upstream 64-bit architecture guard; refusing an unsafe patch.")
-          s = s.replace(old, new, 1)
-          # The upstream GCC path forces -O2; use -O3 for this handheld build.
-          s = s.replace("add_compile_options(-O2)", "add_compile_options(-O3)", 1)
-          p.write_text(s)
-          PY
 
       - name: Configure SDL2 + OpenGL ES 2 + A53 + LTO
         run: |
           set -euxo pipefail
           cmake -S UE1/Source -B UE1/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
@@ -67,12 +43,12 @@ jobs:
             -DBUILD_SOFTDRV=OFF \
             -DBUILD_NOPENGLDRV=OFF \
             -DBUILD_NOPENGLESDRV=ON \
-            -DBUILD_NULLSOUNDDRV=ON \
+            -DBUILD_NULLSOUNDDRV=OFF \
             -DBUILD_NOPENALDRV=ON \
             -DBUILD_WINDRV=OFF \
             -DBUILD_STATIC=OFF \
-            -DCMAKE_C_FLAGS="${CFLAGS} -flto=auto" \
-            -DCMAKE_CXX_FLAGS="${CXXFLAGS} -flto=auto" \
+            -DCMAKE_C_FLAGS="${CFLAGS} -flto=auto -g" \
+            -DCMAKE_CXX_FLAGS="${CXXFLAGS} -flto=auto -g" \
             -DCMAKE_EXE_LINKER_FLAGS="${LDFLAGS}" \
             -DCMAKE_SHARED_LINKER_FLAGS="${LDFLAGS}" \
             -DCMAKE_INSTALL_PREFIX=/usr
@@ -84,7 +60,7 @@ jobs:
           # This project installs modules into its build-tree configuration folder.
           test -x UE1/build/Release/Unreal.bin
           mkdir -p stage
-          cp -a UE1/build/Release/. stage/
+          cp -a UE1/build/RelWithDebInfo/. stage/
           find stage -maxdepth 2 -type f -print
           test -x stage/Unreal.bin
 
@@ -96,9 +72,15 @@ jobs:
 
           # Runtime modules and executable are installed together so UE1 can load its drivers.
           cp -a stage/. package/unreal/System/
-          strip --strip-unneeded package/unreal/System/Unreal.bin || true
-          find package/unreal/System -maxdepth 1 -type f -name '*.so' -exec strip --strip-unneeded {} + || true
+          mkdir -p debug-symbols
+          while IFS= read -r -d '' file; do
+            name=$(basename "$file")
+            objcopy --only-keep-debug "$file" "debug-symbols/$name.debug"
+            strip --strip-debug "$file"
+            objcopy --add-gnu-debuglink="debug-symbols/$name.debug" "$file"
+          done < <(find package/unreal/System -maxdepth 1 -type f \( -name '*.bin' -o -name '*.so' \) -print0)
 
+          cp -a UE1/Engine/Config/. package/unreal/System/
           cat > package/unreal/README-assets.txt <<'EOF'
           REQUIRED GAME DATA (NOT INCLUDED)
           ---------------------------------
@@ -222,3 +204,14 @@ jobs:
           path: unreal-rg35xx-h-autoinstall.zip
           if-no-files-found: error
           retention-days: 14
+
+      - name: Archive debug symbols
+        run: tar -czf unreal-rg35xx-h-debug-symbols.tar.gz debug-symbols
+
+      - name: Upload separate debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: unreal-rg35xx-h-debug-symbols
+          path: unreal-rg35xx-h-debug-symbols.tar.gz
+          if-no-files-found: error
+          retention-days: 30
