@@ -57,6 +57,7 @@ jobs:
         run: |
           set -euxo pipefail
           cmake --build UE1/build --parallel 4
+          cmake --install UE1/build
           # This project installs modules into its build-tree configuration folder.
           test -x UE1/build/RelWithDebInfo/Unreal.bin
           mkdir -p stage
