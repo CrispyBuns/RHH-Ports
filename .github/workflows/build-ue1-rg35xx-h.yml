@@ -10,9 +10,9 @@ jobs:
   build:
     runs-on: ubuntu-22.04-arm
     env:
-      CFLAGS: "-O3 -mcpu=cortex-a53 -ffunction-sections -fdata-sections -fno-strict-aliasing"
-      CXXFLAGS: "-O3 -mcpu=cortex-a53 -ffunction-sections -fdata-sections -fno-strict-aliasing"
-      LDFLAGS: "-flto=auto -Wl,--gc-sections"
+      CFLAGS: "-O3 -mcpu=cortex-a53 -ffunction-sections -fdata-sections -fno-strict-aliasing -fno-math-errno -fno-plt"
+      CXXFLAGS: "-O3 -mcpu=cortex-a53 -ffunction-sections -fdata-sections -fno-strict-aliasing -fno-math-errno -fno-plt"
+      LDFLAGS: "-flto=auto -Wl,--gc-sections -Wl,--as-needed"
     steps:
       - name: Checkout RHH-Ports
         uses: actions/checkout@v4
@@ -170,7 +170,7 @@ jobs:
           fi
 
           pm_platform_helper "$GAME" >/dev/null 2>&1 || true
-          "$GAME"
+          "$GAME" LOG=../log.txt
           GAME_STATUS=$?
 
           if [ -n "$GPTOKEYB_PID" ]; then
