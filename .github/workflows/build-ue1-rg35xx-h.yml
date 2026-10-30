@@ -58,7 +58,7 @@ jobs:
           set -euxo pipefail
           cmake --build UE1/build --parallel 4
           # This project installs modules into its build-tree configuration folder.
-          test -x UE1/build/Release/Unreal.bin
+          test -x UE1/build/RelWithDebInfo/Unreal.bin
           mkdir -p stage
           cp -a UE1/build/RelWithDebInfo/. stage/
           find stage -maxdepth 2 -type f -print
@@ -152,8 +152,6 @@ jobs:
               export LD_LIBRARY_PATH="$SYSTEMDIR"
           fi
           export SDL_GAMECONTROLLERCONFIG="${sdl_controllerconfig:-}"
-          export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-fbcon}"
-          export SDL_AUDIODRIVER="${SDL_AUDIODRIVER:-alsa}"
 
           GPTOKEYB_PID=""
           if [ -n "${GPTOKEYB:-}" ] && [ -x "$GPTOKEYB" ]; then
