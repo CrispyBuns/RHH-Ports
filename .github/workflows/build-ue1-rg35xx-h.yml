@@ -102,6 +102,11 @@ jobs:
           data files (packages, maps, textures, sounds and configuration) into
           System without replacing Unreal.bin or the UE1 driver .so files.
           The source project documents v200 retail and v205 demo as supported.
+
+          CONTROLS AND LOGGING
+          --------------------
+          Press Select + Start together to request a clean engine exit.
+          Runtime diagnostics are written to ports/unreal/log.txt.
           EOF
 
           cat > 'package/Unreal.sh' <<'EOF'
