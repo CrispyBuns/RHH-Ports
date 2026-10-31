@@ -83,7 +83,7 @@ jobs:
           sha_line = '    opts.builtin_rom_sha1 = kPmdUsaSha1;'
           if sha_line not in main:
               raise SystemExit("Expected built-in ROM SHA-1 setting was not found")
-          main = main.replace(sha_line, sha_line + '\\n    opts.diagnostic_replay_default = false;', 1)
+          main = main.replace(sha_line, sha_line + '\n    opts.diagnostic_replay_default = false;', 1)
           main_path.write_text(main)
           print("Disabled diagnostic replay, rewind, and desktop presentation extras")
           PY
