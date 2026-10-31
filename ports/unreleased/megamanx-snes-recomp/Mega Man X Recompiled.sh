@@ -21,6 +21,7 @@ fi
 source "$controlfolder/control.txt"
 [ -f "${controlfolder}/mod_${CFW_NAME}.txt" ] && source "${controlfolder}/mod_${CFW_NAME}.txt"
 get_controls
+trap pm_finish EXIT
 
 GAMEDIR="/$directory/ports/megamanx-snes-recomp"
 GAME="$GAMEDIR/MegaManXSNESRecomp"
@@ -59,5 +60,4 @@ set +e
 GAME_STATUS=$?
 set -e
 echo "Game exited with status $GAME_STATUS"
-pm_finish
 exit "$GAME_STATUS"
