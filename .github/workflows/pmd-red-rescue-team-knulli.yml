@@ -8,7 +8,6 @@ permissions:
 
 jobs:
   build:
-    if: github.ref == 'refs/heads/pmd-red-rescue-team-knulli'
     name: Build ARM64 / Cortex-A53 PortMaster package
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
@@ -23,7 +22,7 @@ jobs:
       - name: Check out RHH-Ports port files
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: pmd-red-rescue-team-knulli
           path: rhh-ports
           persist-credentials: false
 
