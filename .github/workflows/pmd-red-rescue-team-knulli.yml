@@ -102,7 +102,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -flto" \
             -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -flto"
-          cmake --build build/gbarecomp --target gba_recompile --parallel 4
+          cmake --build build/gbarecomp --target gba_recompile --parallel 2
 
       - name: Generate the Red Rescue Team C++ code
         run: |
@@ -132,7 +132,7 @@ jobs:
 
       - name: Compile the game
         run: |
-          cmake --build build/pmd --parallel 4
+          cmake --build build/pmd --parallel 2
           test -x build/pmd/PokemonMysteryDungeonRedRescueTeamRecomp
 
       - name: Assemble PortMaster auto-install package
