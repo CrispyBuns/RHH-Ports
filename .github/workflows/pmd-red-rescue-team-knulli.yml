@@ -134,8 +134,8 @@ jobs:
         run: |
           cmake -S game/gbarecomp -B build/gbarecomp -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG -mcpu=cortex-a53" \
-            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -mcpu=cortex-a53"
+            -DCMAKE_C_FLAGS_RELEASE="-O2 -flto -DNDEBUG -mcpu=cortex-a53" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -flto -DNDEBUG -mcpu=cortex-a53"
           cmake --build build/gbarecomp --target gba_recompile --parallel 2
 
       - name: Generate the Red Rescue Team C++ code
@@ -160,9 +160,9 @@ jobs:
             -DGBAGAME_RECOMP_UI=OFF \
             -DGBARECOMP_ROOT="${GITHUB_WORKSPACE}/game/gbarecomp" \
             -DGBARECOMP_RUNTIME_UI_ROOT="" \
-            -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG -mcpu=cortex-a53 -ffunction-sections -fdata-sections" \
-            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -mcpu=cortex-a53 -ffunction-sections -fdata-sections" \
-            -DCMAKE_EXE_LINKER_FLAGS=" -Wl,--gc-sections"
+            -DCMAKE_C_FLAGS_RELEASE="-O2 -flto -DNDEBUG -mcpu=cortex-a53 -ffunction-sections -fdata-sections" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -flto -DNDEBUG -mcpu=cortex-a53 -ffunction-sections -fdata-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-flto -Wl,--gc-sections"
 
       - name: Compile the game
         run: |
