@@ -1,0 +1,173 @@
+name: PMD Red Rescue Team Recomp - RG35XX-H
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/pmd-red-rescue-team-knulli'
+    name: Build ARM64 / Cortex-A53 PortMaster package
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+
+    env:
+      ROM_SHA1: 9f4cfc5b5f4859d17169a485462e977c7aac2b89
+      BIOS_SHA1: 300c20df6731a33952ded8c436f7f186d25d3492
+      GAME_REPO: CrispyBuns/PokemonMysteryDungeonRedRescueTeamRecomp-rg35xxx-h
+      GBARECOMP_REPO: CrispyBuns/gbarecomp
+
+    steps:
+      - name: Check out game source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GAME_REPO }}
+          ref: main
+          path: game
+          persist-credentials: false
+
+      - name: Install ARM64 build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build git python3 pkg-config \
+            libsdl2-dev zip
+
+      - name: Check out GBARecomp and its dependencies
+        run: |
+          git clone --recurse-submodules --depth 1 \
+            "https://github.com/${GBARECOMP_REPO}.git" game/gbarecomp
+          git -C game/gbarecomp submodule update --init --recursive
+
+      - name: Retrieve and verify private ROM and BIOS
+        env:
+          GBA_REPO: ${{ secrets.GBA_REPO }}
+          GBA_TOKEN: ${{ secrets.GBA_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GBA_REPO}" || -z "${GBA_TOKEN}" ]]; then
+            echo "::error::Add GBA_REPO (owner/repository) and GBA_TOKEN to RHH-Ports Actions secrets."
+            exit 1
+          fi
+          if [[ ! "${GBA_REPO}" =~ ^[^/]+/[^/]+$ ]]; then
+            echo "::error::GBA_REPO must be owner/repository."
+            exit 1
+          fi
+
+          git clone --depth 1 \
+            "https://x-access-token:${GBA_TOKEN}@github.com/${GBA_REPO}.git" \
+            private-game-data
+
+          ROM_PATH=""
+          while IFS= read -r -d '' file; do
+            if [[ "$(sha1sum "$file" | awk '{print $1}')" == "$ROM_SHA1" ]]; then
+              ROM_PATH="$file"
+              break
+            fi
+          done < <(find private-game-data -type f -iname '*.gba' -print0)
+
+          BIOS_PATH=""
+          while IFS= read -r -d '' file; do
+            if [[ "$(sha1sum "$file" | awk '{print $1}')" == "$BIOS_SHA1" ]]; then
+              BIOS_PATH="$file"
+              break
+            fi
+          done < <(find private-game-data -type f -print0)
+
+          if [[ -z "$ROM_PATH" ]]; then
+            echo "::error::The private repository does not contain the expected Red Rescue Team ROM (SHA-1: $ROM_SHA1)."
+            exit 1
+          fi
+          if [[ -z "$BIOS_PATH" ]]; then
+            echo "::error::The private repository does not contain the expected GBA BIOS (SHA-1: $BIOS_SHA1)."
+            exit 1
+          fi
+
+          mkdir -p game/roms game/bios
+          cp "$ROM_PATH" game/roms/pokemon_mystery_dungeon_red_rescue_team.gba
+          cp "$BIOS_PATH" game/bios/gba_bios.bin
+          echo "Verified the expected ROM and BIOS. Private source files will not be placed in the public artifact."
+
+      - name: Build the GBARecomp generator
+        run: |
+          cmake -S game/gbarecomp -B build/gbarecomp -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -flto" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -flto"
+          cmake --build build/gbarecomp --target gba_recompile --parallel 4
+
+      - name: Generate the Red Rescue Team C++ code
+        run: |
+          cd game
+          mkdir -p generated
+          ../build/gbarecomp/gba_recompile \
+            --rom roms/pokemon_mystery_dungeon_red_rescue_team.gba \
+            --out generated \
+            --config game.toml
+          test -n "$(find generated -maxdepth 1 -type f \( -name '*.cpp' -o -name '*.c' \) -print -quit)"
+
+      - name: Configure the native SDL2 runtime
+        run: |
+          # Keep the original 240x160 presentation and disable the optional
+          # sharp-filter pass. The first handheld build uses SDL2's software
+          # renderer; it does not require OpenGL, GL4ES, KMS, or DRM.
+          sed -i 's/^sharp_filter = true/sharp_filter = false/' game/game.toml
+
+          cmake -S game -B build/pmd -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DGBAGAME_RECOMP_UI=OFF \
+            -DGBARECOMP_ROOT="${GITHUB_WORKSPACE}/game/gbarecomp" \
+            -DGBARECOMP_RUNTIME_UI_ROOT="" \
+            -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-flto -Wl,--gc-sections"
+
+      - name: Compile the game
+        run: |
+          cmake --build build/pmd --parallel 4
+          test -x build/pmd/PokemonMysteryDungeonRedRescueTeamRecomp
+
+      - name: Assemble PortMaster auto-install package
+        run: |
+          set -euo pipefail
+          PORT_DIR="pokemon-mystery-dungeon-red-rescue-team"
+          PACKAGE="package"
+          mkdir -p "$PACKAGE/$PORT_DIR"/{bios,roms,saves,userdata}
+
+          cp "build/pmd/PokemonMysteryDungeonRedRescueTeamRecomp" "$PACKAGE/$PORT_DIR/"
+          cp game/game.toml "$PACKAGE/$PORT_DIR/"
+          cp "ports/unreleased/$PORT_DIR/port.json" "$PACKAGE/$PORT_DIR/"
+          cp "ports/unreleased/$PORT_DIR/Pokemon Mystery Dungeon Red Rescue Team.sh" "$PACKAGE/"
+          chmod +x "$PACKAGE/Pokemon Mystery Dungeon Red Rescue Team.sh"
+          touch "$PACKAGE/$PORT_DIR/log.txt"
+
+          cat > "$PACKAGE/$PORT_DIR/ASSETS_REQUIRED.txt" <<'EOF'
+          PERSONAL GAME FILES REQUIRED
+          ----------------------------
+          This package intentionally does not redistribute copyrighted game data.
+
+          Copy your own legally obtained files onto the handheld:
+            bios/gba_bios.bin
+            roms/pokemon_mystery_dungeon_red_rescue_team.gba
+
+          Place them inside:
+            ports/pokemon-mystery-dungeon-red-rescue-team/
+
+          Expected SHA-1:
+            GBA BIOS: 300c20df6731a33952ded8c436f7f186d25d3492
+            Red Rescue Team USA/Australia: 9f4cfc5b5f4859d17169a485462e977c7aac2b89
+          EOF
+
+          cd "$PACKAGE"
+          zip -qr "${GITHUB_WORKSPACE}/pokemon-mystery-dungeon-red-rescue-team.zip" \
+            "Pokemon Mystery Dungeon Red Rescue Team.sh" "$PORT_DIR"
+
+      - name: Upload installable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmd-red-rescue-team-rg35xx-h-autoinstall
+          path: pokemon-mystery-dungeon-red-rescue-team.zip
+          if-no-files-found: error
+          retention-days: 14
