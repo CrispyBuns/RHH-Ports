@@ -162,7 +162,7 @@ jobs:
             -DGBARECOMP_RUNTIME_UI_ROOT="" \
             -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG -mcpu=cortex-a53 -ffunction-sections -fdata-sections" \
             -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -mcpu=cortex-a53 -ffunction-sections -fdata-sections" \
-            -DCMAKE_EXE_LINKER_FLAGS="-flto -Wl,--gc-sections"
+            -DCMAKE_EXE_LINKER_FLAGS=" -Wl,--gc-sections"
 
       - name: Compile the game
         run: |
