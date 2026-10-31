@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "name": "pokemon-mystery-dungeon-red-rescue-team.zip",
+  "items": [
+    "Pokemon Mystery Dungeon Red Rescue Team.sh",
+    "pokemon-mystery-dungeon-red-rescue-team"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Pokemon Mystery Dungeon: Red Rescue Team Recomp",
+    "porter": [
+      "CrispyBuns"
+    ],
+    "desc": "Native GBA recompilation for ARM64 handhelds using SDL2.",
+    "desc_md": null,
+    "inst": "Requires your own Red Rescue Team USA/Australia ROM and GBA BIOS. The build workflow verifies these privately but does not redistribute them. Copy the files listed in ASSETS_REQUIRED.txt into the port's bios/ and roms/ folders.",
+    "inst_md": null,
+    "genres": [
+      "adventure",
+      "rpg"
+    ],
+    "image": null,
+    "rtr": false,
+    "exp": true,
+    "runtime": [],
+    "store": [],
+    "availability": "free",
+    "reqs": [],
+    "arch": [
+      "aarch64"
+    ],
+    "min_glibc": null
+  }
+}
