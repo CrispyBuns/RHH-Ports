@@ -103,11 +103,12 @@ fi
 export SDL_RENDER_DRIVER=software
 export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
 export GBARECOMP_NO_VSYNC=1
+export GBARECOMP_DIAGNOSTICS=0
 
 # Start PortMaster's controller/exit helper. Without a custom .gptk file,
 # gptokeyb uses the device's standard exit shortcut (Start + Select on RG35XX-H).
 if [ -n "${GPTOKEYB:-}" ]; then
-  $GPTOKEYB "$GAME" &
+  "$GPTOKEYB" "$GAME" &
   GPTOKEYB_PID=$!
   echo "Started gptokeyb (PID $GPTOKEYB_PID)"
 else
