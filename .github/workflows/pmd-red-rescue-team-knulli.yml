@@ -147,7 +147,7 @@ jobs:
           fi
 
           mkdir -p game/roms game/bios
-          cp "$ROM_PATH" game/ROM/pokemon_mystery_dungeon_red_rescue_team.gba
+          cp "$ROM_PATH" game/roms/pokemon_mystery_dungeon_red_rescue_team.gba
           cp "$BIOS_PATH" game/bios/gba_bios.bin
           echo "Verified the expected ROM and BIOS. Private source files will not be placed in the public artifact."
 
@@ -211,7 +211,7 @@ jobs:
 
           Copy your own legally obtained files onto the handheld:
             bios/gba_bios.bin
-            roms/pokemon_mystery_dungeon_red_rescue_team.gba
+            ROM/<your-rom>.gba
 
           Place them inside:
             ports/pokemon-mystery-dungeon-red-rescue-team/
