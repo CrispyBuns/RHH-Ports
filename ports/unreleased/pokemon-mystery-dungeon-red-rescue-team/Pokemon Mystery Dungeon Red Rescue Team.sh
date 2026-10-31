@@ -104,8 +104,22 @@ export SDL_RENDER_DRIVER=software
 export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
 export GBARECOMP_NO_VSYNC=1
 
-# PortMaster handles controls and the Start + Select exit shortcut.
-npm_platform_helper "$GAME" || true
+# Start PortMaster's controller/exit helper. Without a custom .gptk file,
+# gptokeyb uses the device's standard exit shortcut (Start + Select on RG35XX-H).
+if [ -n "${GPTOKEYB:-}" ]; then
+  $GPTOKEYB "$GAME" &
+  GPTOKEYB_PID=$!
+  echo "Started gptokeyb (PID $GPTOKEYB_PID)"
+else
+  echo "WARNING: GPTOKEYB is not defined by PortMaster control.txt"
+fi
+
+# Apply firmware-specific launch settings immediately before starting the game.
+if declare -F pm_platform_helper >/dev/null 2>&1; then
+  pm_platform_helper "$GAME"
+else
+  echo "WARNING: pm_platform_helper is unavailable in this PortMaster installation"
+fi
 
 set +e
 "$GAME" --bios "$BIOS" --rom "$ROM" >> "$LOG" 2>&1
