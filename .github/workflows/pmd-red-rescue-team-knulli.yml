@@ -34,6 +34,39 @@ jobs:
           path: game
           persist-credentials: false
 
+      - name: Patch upstream CMake for ARM64 link order and O2
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("game/CMakeLists.txt")
+          text = path.read_text()
+
+          old_link = """target_link_libraries(${PMD_TARGET} PRIVATE
+              gbarecomp_runtime
+              gbarecomp_debug
+              gbarecomp_gba
+              gbarecomp_armv4t)"""
+          new_link = """target_link_libraries(${PMD_TARGET} PRIVATE
+              gbarecomp_runtime
+              gbarecomp_debug
+              gbarecomp_gba
+              gbarecomp_armv4t
+              # Rescan runtime after armv4t for the BIOS dispatch table symbols.
+              gbarecomp_runtime)"""
+          if old_link not in text:
+              raise SystemExit("Expected upstream target_link_libraries block was not found")
+          text = text.replace(old_link, new_link, 1)
+
+          old_opt = 'COMPILE_OPTIONS "-O1;-g0;'
+          if old_opt not in text:
+              raise SystemExit("Expected generated-source -O1 setting was not found")
+          text = text.replace(old_opt, 'COMPILE_OPTIONS "-O2;-g0;', 1)
+
+          path.write_text(text)
+          print("Patched static-library order and generated-source optimization to -O2")
+          PY
+
       - name: Install ARM64 build dependencies
         run: |
           sudo apt-get update
@@ -101,9 +134,9 @@ jobs:
         run: |
           cmake -S game/gbarecomp -B build/gbarecomp -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -flto" \
-            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -flto"
-          cmake --build build/gbarecomp --target gba_recompile --parallel 4
+            -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG -mcpu=cortex-a53" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -mcpu=cortex-a53"
+          cmake --build build/gbarecomp --target gba_recompile --parallel 2
 
       - name: Generate the Red Rescue Team C++ code
         run: |
@@ -127,13 +160,13 @@ jobs:
             -DGBAGAME_RECOMP_UI=OFF \
             -DGBARECOMP_ROOT="${GITHUB_WORKSPACE}/game/gbarecomp" \
             -DGBARECOMP_RUNTIME_UI_ROOT="" \
-            -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
-            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
+            -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG -mcpu=cortex-a53 -ffunction-sections -fdata-sections" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -mcpu=cortex-a53 -ffunction-sections -fdata-sections" \
             -DCMAKE_EXE_LINKER_FLAGS="-flto -Wl,--gc-sections"
 
       - name: Compile the game
         run: |
-          cmake --build build/pmd --parallel 4
+          cmake --build build/pmd --parallel 2
           test -x build/pmd/PokemonMysteryDungeonRedRescueTeamRecomp
 
       - name: Assemble PortMaster auto-install package
