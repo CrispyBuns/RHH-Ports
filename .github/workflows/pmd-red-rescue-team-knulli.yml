@@ -15,8 +15,8 @@ jobs:
     env:
       ROM_SHA1: 9f4cfc5b5f4859d17169a485462e977c7aac2b89
       BIOS_SHA1: 300c20df6731a33952ded8c436f7f186d25d3492
-      GAME_REPO: CrispyBuns/PokemonMysteryDungeonRedRescueTeamRecomp-rg35xxx-h
-      GBARECOMP_REPO: CrispyBuns/gbarecomp
+      GAME_REPO: josiahg2502-glitch/PokemonMysteryDungeonRedRescueTeamRecomp
+      GBARECOMP_REPO: mstan/gbarecomp
 
     steps:
       - name: Check out RHH-Ports port files
@@ -26,7 +26,7 @@ jobs:
           path: rhh-ports
           persist-credentials: false
 
-      - name: Check out game source
+      - name: Check out original PMD game source
         uses: actions/checkout@v4
         with:
           repository: ${{ env.GAME_REPO }}
@@ -41,10 +41,11 @@ jobs:
             build-essential cmake ninja-build git python3 pkg-config \
             libsdl2-dev zip
 
-      - name: Check out GBARecomp and its dependencies
+      - name: Check out original GBARecomp and all upstream submodules
         run: |
           git clone --recurse-submodules --depth 1 \
             "https://github.com/${GBARECOMP_REPO}.git" game/gbarecomp
+          git -C game/gbarecomp submodule sync --recursive
           git -C game/gbarecomp submodule update --init --recursive
 
       - name: Retrieve and verify private ROM and BIOS
@@ -117,8 +118,8 @@ jobs:
       - name: Configure the native SDL2 runtime
         run: |
           # Keep the original 240x160 presentation and disable the optional
-          # sharp-filter pass. The first handheld build uses SDL2's software
-          # renderer; it does not require OpenGL, GL4ES, KMS, or DRM.
+          # sharp-filter pass. This build uses SDL2 software rendering only.
+          # No OpenGL, GL4ES, KMS, or DRM is required.
           sed -i 's/^sharp_filter = true/sharp_filter = false/' game/game.toml
 
           cmake -S game -B build/pmd -G Ninja \
