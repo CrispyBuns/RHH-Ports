@@ -10,9 +10,11 @@ jobs:
   build:
     runs-on: ubuntu-22.04-arm
     env:
-      CFLAGS: "-O3 -mcpu=cortex-a53 -ffunction-sections -fdata-sections -fno-strict-aliasing -fno-math-errno -fno-plt"
-      CXXFLAGS: "-O3 -mcpu=cortex-a53 -ffunction-sections -fdata-sections -fno-strict-aliasing -fno-math-errno -fno-plt"
-      LDFLAGS: "-flto=auto -Wl,--gc-sections -Wl,--as-needed"
+      # Cortex-A53 tuning without fast-math or PGO.
+      # Keep IEEE floating-point behavior intact while optimizing the engine.
+      CFLAGS: "-O3 -mcpu=cortex-a53 -mtune=cortex-a53 -fomit-frame-pointer -ffunction-sections -fdata-sections -fno-strict-aliasing -fno-math-errno -fno-plt"
+      CXXFLAGS: "-O3 -mcpu=cortex-a53 -mtune=cortex-a53 -fomit-frame-pointer -ffunction-sections -fdata-sections -fno-strict-aliasing -fno-math-errno -fno-plt"
+      LDFLAGS: "-flto=auto -Wl,--gc-sections -Wl,--as-needed -Wl,-O2"
     steps:
       - name: Checkout RHH-Ports
         uses: actions/checkout@v4
@@ -21,7 +23,7 @@ jobs:
         run: |
           set -euxo pipefail
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip             libsdl2-dev libopenal-dev libxmp-dev libgles2-mesa-dev libegl1-mesa-dev
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip libsdl2-dev libopenal-dev libxmp-dev libgles2-mesa-dev libegl1-mesa-dev
 
       - name: Checkout UE1 source
         uses: actions/checkout@v4
@@ -148,6 +150,7 @@ jobs:
           echo "Kernel: $(uname -sr)"
           echo "Renderer: SDL2 + OpenGL ES 2"
           echo "CPU target: Cortex-A53 / AArch64"
+          echo "Optimization: O3 + LTO + section GC (no fast-math, no PGO)"
           echo "Engine directory: $SYSTEMDIR"
 
           if [ ! -x "$GAME" ]; then
