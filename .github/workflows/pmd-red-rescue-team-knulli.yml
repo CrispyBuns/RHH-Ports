@@ -139,6 +139,7 @@ jobs:
           cp game/game.toml "$PACKAGE/$PORT_DIR/"
           cp "ports/unreleased/$PORT_DIR/port.json" "$PACKAGE/$PORT_DIR/"
           cp "ports/unreleased/$PORT_DIR/Pokemon Mystery Dungeon Red Rescue Team.sh" "$PACKAGE/"
+          chmod +x "$PACKAGE/Pokemon Mystery Dungeon Red Rescue Team.sh"
           touch "$PACKAGE/$PORT_DIR/log.txt"
 
           cat > "$PACKAGE/$PORT_DIR/ASSETS_REQUIRED.txt" <<'EOF'
