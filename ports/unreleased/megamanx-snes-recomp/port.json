@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "name": "megamanx-snes-recomp.zip",
+  "items": [
+    "Mega Man X Recompiled.sh",
+    "megamanx-snes-recomp"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Mega Man X Recompiled",
+    "porter": ["CrispyBuns"],
+    "desc": "Native Mega Man X SNES recompilation for RG35XX-H / KNULLI using SDL2 OpenGL ES 2.",
+    "desc_md": null,
+    "inst": "This auto-install package includes the X1, X2 and X3 ROM files supplied to the private build workflow. X1 is used as the main game; X2 and X3 are staged as donor ROMs and preselected for the corresponding Mods resources.",
+    "inst_md": null,
+    "genres": ["action", "platformer"],
+    "image": null,
+    "rtr": false,
+    "exp": true,
+    "runtime": [],
+    "store": [],
+    "availability": "free",
+    "reqs": [],
+    "arch": ["aarch64"],
+    "min_glibc": null
+  }
+}
