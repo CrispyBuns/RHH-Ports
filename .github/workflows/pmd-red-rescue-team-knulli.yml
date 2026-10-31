@@ -126,7 +126,7 @@ jobs:
           fi
 
           mkdir -p game/roms game/bios
-          cp "$ROM_PATH" game/roms/pokemon_mystery_dungeon_red_rescue_team.gba
+          cp "$ROM_PATH" game/ROM/pokemon_mystery_dungeon_red_rescue_team.gba
           cp "$BIOS_PATH" game/bios/gba_bios.bin
           echo "Verified the expected ROM and BIOS. Private source files will not be placed in the public artifact."
 
@@ -174,7 +174,7 @@ jobs:
           set -euo pipefail
           PORT_DIR="pokemon-mystery-dungeon-red-rescue-team"
           PACKAGE="package"
-          mkdir -p "$PACKAGE/$PORT_DIR"/{bios,roms,saves,userdata}
+          mkdir -p "$PACKAGE/$PORT_DIR"/{bios,ROM,saves,userdata}
 
           cp "build/pmd/PokemonMysteryDungeonRedRescueTeamRecomp" "$PACKAGE/$PORT_DIR/"
           cp game/game.toml "$PACKAGE/$PORT_DIR/"
