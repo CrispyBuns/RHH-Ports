@@ -20,6 +20,13 @@ jobs:
       GBARECOMP_REPO: CrispyBuns/gbarecomp
 
     steps:
+      - name: Check out RHH-Ports port files
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          path: rhh-ports
+          persist-credentials: false
+
       - name: Check out game source
         uses: actions/checkout@v4
         with:
@@ -138,8 +145,8 @@ jobs:
 
           cp "build/pmd/PokemonMysteryDungeonRedRescueTeamRecomp" "$PACKAGE/$PORT_DIR/"
           cp game/game.toml "$PACKAGE/$PORT_DIR/"
-          cp "ports/unreleased/$PORT_DIR/port.json" "$PACKAGE/$PORT_DIR/"
-          cp "ports/unreleased/$PORT_DIR/Pokemon Mystery Dungeon Red Rescue Team.sh" "$PACKAGE/"
+          cp "rhh-ports/ports/unreleased/$PORT_DIR/port.json" "$PACKAGE/$PORT_DIR/"
+          cp "rhh-ports/ports/unreleased/$PORT_DIR/Pokemon Mystery Dungeon Red Rescue Team.sh" "$PACKAGE/"
           chmod +x "$PACKAGE/Pokemon Mystery Dungeon Red Rescue Team.sh"
           touch "$PACKAGE/$PORT_DIR/log.txt"
 
