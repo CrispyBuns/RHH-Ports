@@ -1,5 +1,5 @@
 #!/bin/bash
-set -u
+set +u  # PortMaster's KNULLI device_info.txt may reference unset variables.
 
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
