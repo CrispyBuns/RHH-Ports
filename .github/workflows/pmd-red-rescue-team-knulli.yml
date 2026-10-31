@@ -65,6 +65,27 @@ jobs:
 
           path.write_text(text)
           print("Patched static-library order and generated-source optimization to -O3")
+          # Disable costly desktop diagnostics and rewind features on the H700.
+          main_path = Path("game/src/main.cpp")
+          main = main_path.read_text()
+          replacements = {
+              "opts.expose_assist_tools = true;": "opts.expose_assist_tools = false;",
+              "opts.rewind_history_seconds = 30;": "opts.rewind_history_seconds = 0;",
+              "opts.launcher_expose_sharp_filter = true;": "opts.launcher_expose_sharp_filter = false;",
+              "opts.launcher_default_sharp_filter = true;": "opts.launcher_default_sharp_filter = false;",
+              "opts.freely_resizable_window = true;": "opts.freely_resizable_window = false;",
+              "opts.max_view_width = 432;": "opts.max_view_width = 240;",
+          }
+          for old, new in replacements.items():
+              if old not in main:
+                  raise SystemExit(f"Expected main.cpp setting not found: {old}")
+              main = main.replace(old, new, 1)
+          sha_line = '    opts.builtin_rom_sha1 = kPmdUsaSha1;'
+          if sha_line not in main:
+              raise SystemExit("Expected built-in ROM SHA-1 setting was not found")
+          main = main.replace(sha_line, sha_line + '\\n    opts.diagnostic_replay_default = false;', 1)
+          main_path.write_text(main)
+          print("Disabled diagnostic replay, rewind, and desktop presentation extras")
           PY
 
       - name: Install ARM64 build dependencies
