@@ -8,12 +8,17 @@
   "items_opt": [],
   "attr": {
     "title": "Mega Man X Recompiled",
-    "porter": ["CrispyBuns"],
+    "porter": [
+      "CrispyBuns"
+    ],
     "desc": "Native Mega Man X SNES recompilation for RG35XX-H / KNULLI using SDL2 OpenGL ES 2.",
     "desc_md": null,
-    "inst": "This auto-install package includes the X1, X2 and X3 ROM files supplied to the private build workflow. X1 is used as the main game; X2 and X3 are staged as donor ROMs and preselected for the corresponding Mods resources.",
+    "inst": "This auto-install package includes the X1, X2 and X3 ROM files supplied to the private build workflow. X1 is used as the main game; X2 and X3 are staged as donor ROMs and preselected for the corresponding Mods resources. The Password Saves mod is enabled by default: it remembers the last generated password and automatically fills it when you open Password on a later launch.",
     "inst_md": null,
-    "genres": ["action", "platformer"],
+    "genres": [
+      "action",
+      "platformer"
+    ],
     "image": null,
     "rtr": false,
     "exp": true,
@@ -21,7 +26,9 @@
     "store": [],
     "availability": "free",
     "reqs": [],
-    "arch": ["aarch64"],
+    "arch": [
+      "aarch64"
+    ],
     "min_glibc": null
   }
 }
