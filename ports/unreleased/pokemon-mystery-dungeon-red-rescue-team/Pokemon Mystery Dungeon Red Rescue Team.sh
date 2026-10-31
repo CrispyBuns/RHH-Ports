@@ -1,6 +1,18 @@
 #!/bin/bash
 set +u  # PortMaster's KNULLI device_info.txt may reference unset variables.
 
+# Start a bootstrap log before loading PortMaster scripts. On KNULLI the
+# default ROM root is /userdata/roms; this captures control.txt failures too.
+BOOT_GAMEDIR="/${directory:-userdata/roms}/ports/pokemon-mystery-dungeon-red-rescue-team"
+mkdir -p "$BOOT_GAMEDIR"
+LOG="$BOOT_GAMEDIR/log.txt"
+: > "$LOG"
+exec > >(tee -a "$LOG") 2>&1
+
+echo "=== Launcher bootstrap ==="
+echo "Date: $(date)"
+echo "Initial log: $LOG"
+
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
 if [ -d "/opt/system/Tools/PortMaster/" ]; then
@@ -25,12 +37,18 @@ trap pm_finish EXIT
 
 GAMEDIR="/$directory/ports/pokemon-mystery-dungeon-red-rescue-team"
 GAME="$GAMEDIR/PokemonMysteryDungeonRedRescueTeamRecomp"
-LOG="$GAMEDIR/log.txt"
 
 mkdir -p "$GAMEDIR/saves" "$GAMEDIR/userdata"
 cd "$GAMEDIR" || exit 1
-: > "$LOG"
-exec > >(tee -a "$LOG") 2>&1
+
+# Switch to PortMaster's resolved path if it differs from the bootstrap path.
+if [ "$LOG" != "$GAMEDIR/log.txt" ]; then
+  LOG="$GAMEDIR/log.txt"
+  mkdir -p "$GAMEDIR"
+  : > "$LOG"
+  exec > >(tee -a "$LOG") 2>&1
+fi
+echo "Resolved game directory: $GAMEDIR"
 
 echo "=== Pokemon Mystery Dungeon: Red Rescue Team Recomp ==="
 echo "Firmware: ${CFW_NAME:-unknown}"
