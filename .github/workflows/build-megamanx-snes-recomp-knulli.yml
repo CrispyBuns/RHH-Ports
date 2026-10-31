@@ -1,0 +1,207 @@
+name: Build Mega Man X Recompiled - RG35XX-H auto-install
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - megamanx-snes-recomp-knulli
+
+permissions:
+  contents: read
+
+env:
+  CFLAGS: "-O3 -mcpu=cortex-a53 -flto -fno-math-errno"
+  CXXFLAGS: "-O3 -mcpu=cortex-a53 -flto -fno-math-errno"
+  LDFLAGS: "-flto"
+  MAKEFLAGS: "-j4"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout RHH-Ports
+        uses: actions/checkout@v7.0.1
+
+      - name: Install build dependencies
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config zip \
+            python3 python3-pip python3-pil libsdl2-dev \
+            libegl1-mesa-dev libgles2-mesa-dev libgl1-mesa-dev
+
+      - name: Checkout Mega Man X Recompiled source
+        uses: actions/checkout@v6
+        with:
+          repository: CrispyBuns/MegaManXSNESRecomp-ARM64
+          ref: sdl-opengles2
+          submodules: recursive
+          path: MegaManXSNESRecomp
+
+      # RHH-Ports repository secrets:
+      # MMX_ROM_REPO = owner/repository containing the private X1/X2/X3 ROMs
+      # MMX_ROM_TOKEN = token with read-only Contents access to that repository
+      - name: Checkout private ROM repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ secrets.MMX_ROM_REPO }}
+          token: ${{ secrets.MMX_ROM_TOKEN }}
+          path: private-roms
+          lfs: true
+          persist-credentials: false
+
+      - name: Validate X1 ROM input
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "private-roms/Mega Man X (USA) (Rev 1).sfc" || {
+            echo "::error::Missing X1 ROM: Mega Man X (USA) (Rev 1).sfc"
+            exit 1
+          }
+
+      - name: Detect X2 and X3 donor ROMs by content
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+
+          root = Path("private-roms")
+          expected = {
+              "X2": "f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed",
+              "X3": "65b03268afac296330e8ff8d60dd0825879e13ed658b37713c034a3bd074f1d7",
+          }
+          matches = {game: [] for game in expected}
+          diagnostics = []
+
+          for path in root.rglob("*"):
+              if ".git" in path.parts or not path.is_file() or path.is_symlink():
+                  continue
+              size = path.stat().st_size
+              if size < 512 or size > 8 * 1024 * 1024:
+                  continue
+              data = path.read_bytes()
+              raw_hash = hashlib.sha256(data).hexdigest()
+              stripped_hash = hashlib.sha256(data[512:]).hexdigest() if size > 512 else ""
+              rel = path.relative_to(root).as_posix()
+              diagnostics.append((rel, size, raw_hash, stripped_hash))
+              for game, wanted in expected.items():
+                  if raw_hash == wanted or stripped_hash == wanted:
+                      matches[game].append(rel)
+
+          for game, found in matches.items():
+              if len(found) != 1:
+                  if not found:
+                      print(f"::error::Could not identify Mega Man {game} by SHA-256.")
+                      print("Inspected candidates (path | size | raw SHA-256 | after 512-byte strip):")
+                      for rel, size, raw_hash, stripped_hash in diagnostics:
+                          print(f"  {rel} | {size} | {raw_hash} | {stripped_hash}")
+                      raise SystemExit(f"Expected checksum: {expected[game]}")
+                  raise SystemExit(f"Multiple matching Mega Man {game} ROMs: {found}")
+              print(f"Detected Mega Man {game}: {found[0]}")
+              with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+                  env.write(f"{game}_ROM_REL={found[0]}" + chr(10))
+          PY
+
+      - name: Install Rust analyzer toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Verify SDL2 GLES2 framework path
+        working-directory: MegaManXSNESRecomp
+        run: |
+          bash tools/enable-sdl-opengles2.sh
+
+      - name: Build ARM64 Cortex-A53 executable
+        working-directory: MegaManXSNESRecomp
+        env:
+          SNESRECOMP_ANALYSIS_BACKEND: native
+        run: |
+          set -euxo pipefail
+          bash tools/build-linux-dev.sh \
+            --rom "../private-roms/Mega Man X (USA) (Rev 1).sfc" \
+            --sdl SDL2 --fresh --jobs 4 \
+            --build-dir build-rg35xxh \
+            -- \
+            -DSNESRECOMP_SDL_GLES2_ONLY=ON \
+            -DCMAKE_C_FLAGS_RELEASE="-O3 -mcpu=cortex-a53 -flto -fno-math-errno" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -mcpu=cortex-a53 -flto -fno-math-errno" \
+            -DCMAKE_EXE_LINKER_FLAGS_RELEASE="-flto" \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+          test -x build-rg35xxh/MegaManXSNESRecomp
+
+      - name: Assemble PortMaster auto-install package
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE="package"
+          PORTDIR="$PACKAGE/megamanx-snes-recomp"
+          rm -rf "$PACKAGE"
+          mkdir -p "$PORTDIR/roms/assets" "$PORTDIR/userdata" "$PORTDIR/mods/preloaded"
+
+          install -m 755 MegaManXSNESRecomp/build-rg35xxh/MegaManXSNESRecomp "$PORTDIR/MegaManXSNESRecomp"
+          install -m 644 MegaManXSNESRecomp/config.ini "$PORTDIR/config.ini"
+          install -m 644 MegaManXSNESRecomp/logging.ini "$PORTDIR/logging.ini"
+          install -m 644 "private-roms/Mega Man X (USA) (Rev 1).sfc" "$PORTDIR/roms/"
+
+          install -D -m 644 "private-roms/$X2_ROM_REL" "$PORTDIR/roms/$X2_ROM_REL"
+          install -D -m 644 "private-roms/$X3_ROM_REL" "$PORTDIR/roms/$X3_ROM_REL"
+
+          if [ -d MegaManXSNESRecomp/assets ]; then
+            cp -a MegaManXSNESRecomp/assets/. "$PORTDIR/roms/assets/"
+          fi
+
+          test -d MegaManXSNESRecomp/build-rg35xxh/mods/preloaded/packages || {
+            echo "::error::Build did not stage the preloaded mod catalog"
+            exit 1
+          }
+          cp -a MegaManXSNESRecomp/build-rg35xxh/mods/preloaded/packages "$PORTDIR/mods/preloaded/"
+
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          state = (
+              "format_version = 1\n\n"
+              "[[shared_resource]]\n"
+              'id = "megaman-x.source.x2"\n'
+              f"path = {json.dumps('roms/' + os.environ['X2_ROM_REL'])}\n\n"
+              "[[shared_resource]]\n"
+              'id = "megaman-x.source.x3"\n'
+              f"path = {json.dumps('roms/' + os.environ['X3_ROM_REL'])}\n"
+          )
+          Path("package/megamanx-snes-recomp/mods/preloaded/state.toml").write_text(state, encoding="utf-8")
+          PY
+
+          ln -s "roms/Mega Man X (USA) (Rev 1).sfc" "$PORTDIR/mmx.sfc"
+          ln -s "roms/assets" "$PORTDIR/assets"
+
+          install -m 644 ports/unreleased/megamanx-snes-recomp/port.json "$PORTDIR/port.json"
+          install -m 755 "ports/unreleased/megamanx-snes-recomp/Mega Man X Recompiled.sh" "$PACKAGE/Mega Man X Recompiled.sh"
+
+          cat > "$PORTDIR/Mega Man X Recompiled.gptk" <<'EOF'
+          # Native SDL2 controller input; no gameplay remapping.
+          EOF
+
+          test -s "$PORTDIR/roms/$X2_ROM_REL"
+          test -s "$PORTDIR/roms/$X3_ROM_REL"
+          test -x "$PORTDIR/MegaManXSNESRecomp"
+          test -x "$PACKAGE/Mega Man X Recompiled.sh"
+          echo "Autoinstall payload:"
+          find "$PACKAGE" -maxdepth 4 -type f -printf '%p (%s bytes)\n' | sort
+
+          cd "$PACKAGE"
+          zip -qr ../megamanx-snes-recomp.zip "Mega Man X Recompiled.sh" megamanx-snes-recomp
+          unzip -l ../megamanx-snes-recomp.zip
+
+      - name: Upload PortMaster auto-install ZIP
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: megamanx-snes-recomp-autoinstall
+          path: megamanx-snes-recomp.zip
+          if-no-files-found: error
+          retention-days: 14
