@@ -37,7 +37,6 @@ echo "Firmware: ${CFW_NAME:-unknown}"
 echo "Architecture: $(uname -m)"
 echo "Kernel: $(uname -sr)"
 echo "Renderer: SDL2 software renderer"
-echo "Resolution: original 240x160 game view"
 echo "Game directory: $GAMEDIR"
 echo "Date: $(date)"
 
@@ -47,33 +46,51 @@ if [ ! -x "$GAME" ]; then
   exit 1
 fi
 
-if [ ! -f "$GAMEDIR/bios/gba_bios.bin" ]; then
-  echo "ERROR: missing bios/gba_bios.bin"
-  pm_show_error "Add your own GBA BIOS as bios/gba_bios.bin. See ASSETS_REQUIRED.txt."
+# User data layout: bios/ for the GBA BIOS and ROM/ for the game ROM.
+BIOS="$GAMEDIR/bios/gba_bios.bin"
+ROM_DIR="$GAMEDIR/ROM"
+
+if [ ! -f "$BIOS" ]; then
+  echo "ERROR: missing BIOS: $BIOS"
+  pm_show_error "Place your GBA BIOS at bios/gba_bios.bin."
   exit 1
 fi
 
-if [ ! -f "$GAMEDIR/roms/pokemon_mystery_dungeon_red_rescue_team.gba" ]; then
-  echo "ERROR: missing Red Rescue Team ROM"
-  pm_show_error "Add your own Red Rescue Team ROM in the roms folder. See ASSETS_REQUIRED.txt."
+if [ ! -d "$ROM_DIR" ]; then
+  echo "ERROR: missing ROM directory: $ROM_DIR"
+  pm_show_error "Create the ROM folder and place your Red Rescue Team .gba file inside it."
   exit 1
 fi
+
+ROM=""
+while IFS= read -r -d '' file; do
+  ROM="$file"
+  break
+done < <(find "$ROM_DIR" -maxdepth 1 -type f -iname '*.gba' -print0)
+
+if [ -z "$ROM" ]; then
+  echo "ERROR: no .gba file found in $ROM_DIR"
+  pm_show_error "Place your Red Rescue Team .gba ROM inside the ROM folder."
+  exit 1
+fi
+
+echo "BIOS: $BIOS"
+echo "ROM: $ROM"
 
 if [ -d "$GAMEDIR/libs" ]; then
   export LD_LIBRARY_PATH="$GAMEDIR/libs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 fi
 
-# The GBA runtime uses SDL2's 2D renderer. No OpenGL, GL4ES, KMS, or DRM
-# renderer path is required by this port.
+# SDL2 2D software rendering; no OpenGL, GL4ES, KMS, or DRM.
 export SDL_RENDER_DRIVER=software
 export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
 export GBARECOMP_NO_VSYNC=1
 
-# PortMaster handles the handheld controls and Start + Select exit shortcut.
-pm_platform_helper "$GAME" || true
+# PortMaster handles controls and the Start + Select exit shortcut.
+npm_platform_helper "$GAME" || true
 
 set +e
-"$GAME" >> "$LOG" 2>&1
+"$GAME" --bios "$BIOS" --rom "$ROM" >> "$LOG" 2>&1
 GAME_STATUS=$?
 set -e
 
