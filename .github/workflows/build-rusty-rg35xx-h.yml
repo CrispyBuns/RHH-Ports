@@ -148,7 +148,7 @@ jobs:
           git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Cross.git SPIRV-Cross
           cmake -S SDL -B SDL/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_FLAGS="-O3 -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
+            -DCMAKE_C_FLAGS="-O3 -ffast-math -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
             -DCMAKE_EXE_LINKER_FLAGS="-flto" \
             -DCMAKE_SHARED_LINKER_FLAGS="-flto -Wl,--gc-sections" \
             -DSDL_SDL2_BACKEND=ON \
@@ -201,8 +201,8 @@ jobs:
           cmake -S . -B build/rg35xx-h -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/sdl3-install" \
-            -DCMAKE_C_FLAGS="-O3 -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
-            -DCMAKE_CXX_FLAGS="-O3 -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
+            -DCMAKE_C_FLAGS="-O3 -ffast-math -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
+            -DCMAKE_CXX_FLAGS="-O3 -ffast-math -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
             -DCMAKE_EXE_LINKER_FLAGS="-flto -Wl,--gc-sections" \
             -DRUSTY_RELEASE=ON \
             -DRUSTY_ENGLISH="$RUSTY_ENGLISH" \
