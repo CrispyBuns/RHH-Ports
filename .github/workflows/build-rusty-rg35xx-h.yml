@@ -35,12 +35,26 @@ jobs:
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxinerama-dev \
             libxi-dev libxfixes-dev libxss-dev libasound2-dev libpulse-dev \
             libudev-dev libdbus-1-dev libibus-1.0-dev libwayland-dev \
-            libdecor-0-dev libusb-1.0-0-dev libdrm-dev libgbm-dev \
-            glslc
+            libusb-1.0-0-dev libdrm-dev libgbm-dev
           add-apt-repository -y ppa:deadsnakes/ppa
           apt-get update
           apt-get install -y python3.11 python3.11-venv python3.11-dev
           python3.11 -m pip install --no-cache-dir cmake==3.31.6 uv
+
+      - name: Build glslc shader compiler from source (Ubuntu 20.04 ARM64)
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --recurse-submodules https://github.com/google/shaderc.git shaderc
+          cd shaderc
+          python3.11 utils/git-sync-deps
+          cmake -S . -B build -G Ninja \\
+            -DCMAKE_BUILD_TYPE=Release \\
+            -DSHADERC_SKIP_TESTS=ON \\
+            -DSHADERC_SKIP_EXAMPLES=ON \\
+            -DSHADERC_SKIP_COPYRIGHT_CHECK=ON
+          cmake --build build --target glslc --parallel "$(nproc)"
+          install -m 0755 build/glslc/glslc /usr/local/bin/glslc
+          glslc --version
 
       - name: Checkout Rusty source
         uses: actions/checkout@v4
