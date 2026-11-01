@@ -14,10 +14,10 @@ permissions:
 
 jobs:
   build:
-    # ARM runner + Ubuntu 20.04 ARM64 container keeps the output ABI conservative.
+    # Ubuntu 22.04 ARM64 runner and container for a newer, better-supported build environment.
     runs-on: ubuntu-22.04-arm
     container:
-      image: arm64v8/ubuntu:20.04
+      image: arm64v8/ubuntu:22.04
     env:
       DEBIAN_FRONTEND: noninteractive
       RUSTY_REPO: CrispyBuns/Rusty-Rom
@@ -25,7 +25,7 @@ jobs:
       SDL2_BACKEND_BRANCH: sdl2-backend
 
     steps:
-      - name: Install Ubuntu 20.04 ARM64 build dependencies
+      - name: Install Ubuntu 22.04 ARM64 build dependencies
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
@@ -41,7 +41,7 @@ jobs:
           apt-get install -y python3.11 python3.11-venv python3.11-dev
           python3.11 -m pip install --no-cache-dir cmake==3.31.6 uv
 
-      - name: Build glslc shader compiler from source (Ubuntu 20.04 ARM64)
+      - name: Build glslc shader compiler from source (Ubuntu 22.04 ARM64)
         run: |
           set -euo pipefail
           git clone --depth 1 --recurse-submodules https://github.com/google/shaderc.git shaderc
