@@ -30,7 +30,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             ca-certificates curl git build-essential pkg-config ninja-build \
-            python3 python3-pip python3-venv software-properties-common \
+            python3 python3-pip python3-venv software-properties-common zip file binutils \
             libegl1-mesa-dev libgles2-mesa-dev libgl1-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxinerama-dev \
             libxi-dev libxfixes-dev libxss-dev libasound2-dev libpulse-dev \
