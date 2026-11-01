@@ -49,6 +49,13 @@ jobs:
           ref: main
           path: rusty-src
 
+      - name: Checkout PortMaster package files
+        uses: actions/checkout@v4
+        with:
+          repository: CrispyBuns/RHH-Ports
+          ref: main
+          path: port-files
+
       - name: Fetch private game files
         env:
           RUSTY_TOKEN: ${{ secrets.RUSTY_TOKEN }}
@@ -121,7 +128,10 @@ jobs:
             -DSDL_DUMMYAUDIO=OFF -DSDL_DISKAUDIO=OFF
           cmake --build SDL/build --parallel "$(nproc)"
           cmake --install SDL/build --prefix "$GITHUB_WORKSPACE/sdl3-install"
-          test -f "$GITHUB_WORKSPACE/sdl3-install/lib/libSDL3.so.0" || find sdl3-install -name 'libSDL3.so*' -print
+          SDL3_LIB="$(find "$GITHUB_WORKSPACE/sdl3-install" -name 'libSDL3.so*' -type f | head -n 1)"
+          test -n "$SDL3_LIB" || { echo "::error::Installed SDL3 shared library not found"; find sdl3-install -name 'libSDL3.so*' -print; exit 1; }
+          echo "SDL3 library: $SDL3_LIB"
+          echo "SDL3_LIB=$SDL3_LIB" >> "$GITHUB_ENV"
 
       - name: Build Rusty ARM64 binary
         working-directory: rusty-src
@@ -129,6 +139,29 @@ jobs:
           set -euo pipefail
           python3.11 -m pip install --no-cache-dir uv
           uv sync --python 3.11
+          # PortMaster exit chord: hold Start + Select (SDL BACK) to quit cleanly.
+          python3.11 - <<'PY'
+          from pathlib import Path
+          path = Path("runtime/display.c")
+          source = path.read_text()
+          needle = "static void handle_gamepad_button(const SDL_GamepadButtonEvent *event)\\n{\\n"
+          patch = """static int quit_start_held;
+          static int quit_select_held;
+
+          static void handle_gamepad_button(const SDL_GamepadButtonEvent *event)
+          {
+              if (event->button == SDL_GAMEPAD_BUTTON_START) quit_start_held = event->down;
+              if (event->button == SDL_GAMEPAD_BUTTON_BACK) quit_select_held = event->down;
+              if (quit_start_held && quit_select_held) {
+                  rt_log("quit: Start+Select");
+                  exit(0);
+              }
+          """
+          if needle not in source:
+              raise SystemExit("Could not locate SDL gamepad handler; refusing to apply exit-chord patch")
+          source = source.replace(needle, patch, 1)
+          path.write_text(source)
+          PY
           # Upstream currently hardcodes -Werror and -O2. Keep warnings enabled,
           # remove -Werror for portability, and use the RG35XX-H Cortex-A53 profile.
           sed -i 's/set(C_WARNINGS -Wall -Wextra -Werror)/set(C_WARNINGS -Wall -Wextra)/' CMakeLists.txt
@@ -154,7 +187,7 @@ jobs:
           PKG="$GITHUB_WORKSPACE/package"
           mkdir -p "$PKG/roms" "$PKG/lib" "$PKG/licenses"
           install -m 0755 build/rg35xx-h/rusty "$PKG/rusty"
-          install -m 0644 "$GITHUB_WORKSPACE/sdl3-install/lib/libSDL3.so.0" "$PKG/lib/libSDL3.so.0"
+          install -m 0644 "$SDL3_LIB" "$PKG/lib/libSDL3.so.0"
           install -m 0644 LICENSE "$PKG/LICENSE"
           install -m 0644 packaging/README.txt "$PKG/README.txt"
           install -m 0644 packaging/portable.txt "$PKG/portable.txt"
@@ -166,12 +199,11 @@ jobs:
           Copy your own Rusty game disk image (.hdi/.d88/.hdm), FONT.ROM, and ym2608_adpcm_rom.bin into this package's roms/ folder.
           The disk image is opened by the launcher; FONT.ROM and ym2608_adpcm_rom.bin are searched in roms/.
           EOF
-          cp "$GITHUB_WORKSPACE/port-files/Rusty.sh" "$PKG/Rusty.sh"
-          cp "$GITHUB_WORKSPACE/port-files/port.json" "$PKG/port.json"
-          cd "$GITHUB_WORKSPACE"
-          zip -r rusty-rg35xx-h.zip package
-          mkdir -p artifacts
-          mv rusty-rg35xx-h.zip artifacts/
+          cp "$GITHUB_WORKSPACE/port-files/ports/unreleased/rusty/Rusty.sh" "$PKG/Rusty.sh"
+          cp "$GITHUB_WORKSPACE/port-files/ports/unreleased/rusty/port.json" "$PKG/port.json"
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+          cd "$PKG"
+          zip -r "$GITHUB_WORKSPACE/artifacts/rusty-rg35xx-h.zip" .
           echo "Package assembled; private game data intentionally excluded."
 
       - name: Upload install ZIP
