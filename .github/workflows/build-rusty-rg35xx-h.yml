@@ -133,7 +133,7 @@ jobs:
       - name: Prepare Japanese and optional English game files
         working-directory: rusty-src
         env:
-          INCLUDE_ENGLISH: ${{ inputs.include_english }}
+          INCLUDE_ENGLISH: ${{ github.event_name == 'schedule' && 'true' || inputs.include_english }}
         run: |
           set -euo pipefail
           mkdir -p build/files/ja build/unpacked/ja
