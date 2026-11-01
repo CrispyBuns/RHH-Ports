@@ -20,8 +20,7 @@ fi
 
 GAMEDIR="/$directory/ports/rusty"
 cd "$GAMEDIR" || exit 1
-: > "$GAMEDIR/log.txt"
-exec > >(tee -a "$GAMEDIR/log.txt") 2>&1
+exec > >(tee "$GAMEDIR/log.txt") 2>&1
 
 echo "=== Rusty RG35XX-H launcher ==="
 echo "Date: $(date)"
