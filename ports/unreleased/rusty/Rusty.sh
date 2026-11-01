@@ -30,7 +30,6 @@ echo "CPU: $(uname -m)"
 echo "Game directory: $GAMEDIR"
 
 export LD_LIBRARY_PATH="$GAMEDIR/lib:${LD_LIBRARY_PATH:-}"
-export SDL3SHIM_SDL2_LIB="${SDL3SHIM_SDL2_LIB:-/usr/lib/libSDL2-2.0.so.0}"
 export SDL_GAMECONTROLLERCONFIG="${sdl_controllerconfig:-}"
 export RUSTY_ROM_DIR="$GAMEDIR/roms"
 
