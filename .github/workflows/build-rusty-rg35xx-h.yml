@@ -1,6 +1,9 @@
 name: Build Rusty for RG35XX-H (KNULLI)
 
 on:
+  schedule:
+    # Poll upstream Rusty for new commits every 15 minutes.
+    - cron: "*/15 * * * *"
   workflow_dispatch:
     inputs:
       include_english:
@@ -12,8 +15,39 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: rusty-rg35xx-h-autoinstall
+  cancel-in-progress: false
+
 jobs:
+  check-upstream:
+    runs-on: ubuntu-22.04
+    outputs:
+      sha: ${{ steps.upstream.outputs.sha }}
+      changed: ${{ steps.cache.outputs.cache-hit != 'true' }}
+    steps:
+      - name: Checkout upstream Rusty
+        uses: actions/checkout@v4
+        with:
+          repository: karmasugar/rusty-bin
+          ref: ${{ needs.check-upstream.outputs.sha }}
+          path: rusty-src
+
+      - name: Get upstream commit
+        id: upstream
+        working-directory: rusty-src
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this upstream commit was already built
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .rusty-upstream-cache
+          key: rusty-upstream-${{ steps.upstream.outputs.sha }}
+
   build:
+    needs: check-upstream
+    if: github.event_name == 'workflow_dispatch' || needs.check-upstream.outputs.changed == 'true'
     runs-on: ubuntu-22.04-arm
     container:
       image: arm64v8/ubuntu:22.04
@@ -290,3 +324,16 @@ jobs:
           path: artifacts/rusty-rg35xx-h.zip
           if-no-files-found: error
           retention-days: 30
+
+      - name: Save successfully built upstream revision
+        if: needs.check-upstream.outputs.changed == 'true'
+        run: |
+          mkdir -p .rusty-upstream-cache
+          echo "${{ needs.check-upstream.outputs.sha }}" > .rusty-upstream-cache/commit.txt
+
+      - name: Cache successfully built upstream revision
+        if: needs.check-upstream.outputs.changed == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .rusty-upstream-cache
+          key: rusty-upstream-${{ needs.check-upstream.outputs.sha }}
