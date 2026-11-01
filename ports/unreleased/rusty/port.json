@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "name": "rusty-rg35xx-h.zip",
+  "items": [
+    "Rusty.sh",
+    "rusty",
+    "lib",
+    "roms",
+    "log.txt",
+    "ASSETS_REQUIRED.txt",
+    "README.txt",
+    "portable.txt",
+    "LICENSE",
+    "licenses"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Rusty (PC-98)",
+    "porter": ["CrispyBuns"],
+    "desc": "Native Rusty PC-98 recompilation for RG35XX-H / KNULLI using the SDL3 SDL2-backend shim.",
+    "desc_md": null,
+    "inst": "Copy your own Rusty disk image, FONT.ROM and ym2608_adpcm_rom.bin into ports/rusty/roms/. Only one disk image should be present.",
+    "inst_md": null,
+    "genres": ["action", "platformer"],
+    "image": null,
+    "rtr": false,
+    "exp": true,
+    "runtime": [],
+    "store": [],
+    "availability": "free",
+    "reqs": [],
+    "arch": ["aarch64"],
+    "min_glibc": null
+  }
+}
