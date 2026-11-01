@@ -14,7 +14,6 @@ permissions:
 
 jobs:
   build:
-    # Ubuntu 22.04 ARM64 runner and container for a newer, better-supported build environment.
     runs-on: ubuntu-22.04-arm
     container:
       image: arm64v8/ubuntu:22.04
@@ -51,10 +50,10 @@ jobs:
           git clone --depth 1 --recurse-submodules https://github.com/google/shaderc.git shaderc
           cd shaderc
           python3.11 utils/git-sync-deps
-          cmake -S . -B build -G Ninja \\
-            -DCMAKE_BUILD_TYPE=Release \\
-            -DSHADERC_SKIP_TESTS=ON \\
-            -DSHADERC_SKIP_EXAMPLES=ON \\
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSHADERC_SKIP_TESTS=ON \
+            -DSHADERC_SKIP_EXAMPLES=ON \
             -DSHADERC_SKIP_COPYRIGHT_CHECK=ON
           cmake --build build --target glslc --parallel "$(nproc)"
           install -m 0755 build/glslc/glslc /usr/local/bin/glslc
@@ -78,6 +77,7 @@ jobs:
         env:
           RUSTY_TOKEN: ${{ secrets.RUSTY_TOKEN }}
         run: |
+          set -euo pipefail
           test -n "$RUSTY_TOKEN" || { echo "::error::RUSTY_TOKEN secret is empty or unavailable"; exit 1; }
           git clone --depth 1 "https://x-access-token:${RUSTY_TOKEN}@github.com/${RUSTY_REPO}.git" private-game-data
           unset RUSTY_TOKEN
@@ -94,40 +94,35 @@ jobs:
           (("${#hdis[@]}" > 0)) || { echo "::error::No Rusty disk image (.hdi/.d88/.hdm) found in CrispyBuns/Rusty-Rom"; exit 1; }
           ja_image=""
           en_image=""
-          # Prefer the 46 OkuMen image when present. Rusty's upstream build still
-          # needs the Japanese original as its baseline for hashes and shared modules.
           for f in "${hdis[@]}"; do
             name="$(basename "$f" | tr '[:upper:]' '[:lower:]')"
             if [[ "$name" == *"46 okum"* || "$name" == *"46okum"* || "$name" == *"translation"* || "$name" == *"english"* ]]; then
-              if [[ -z "$en_image" ]]; then en_image="$f"; fi
+              [[ -z "$en_image" ]] && en_image="$f"
             elif [[ -z "$ja_image" ]]; then
               ja_image="$f"
             fi
           done
-
           if [[ -n "$en_image" ]]; then
             echo "Preferred game version: English 46 OkuMen translation"
             echo "English image: $(basename "$en_image")"
           else
             echo "No English translation image found; falling back to Japanese original."
           fi
-          test -n "$ja_image" || { echo "::error::Japanese original image is required as Rusty's baseline, even when building English translation modules"; exit 1; }
+          test -n "$ja_image" || { echo "::error::Japanese original image is required as Rusty's baseline"; exit 1; }
           echo "Japanese baseline: $(basename "$ja_image")"
           python3.11 tools/extract.py "$ja_image" -o build/files/ja
           test -d build/files/ja/RUSTY || { echo "::error::Japanese extraction did not produce build/files/ja/RUSTY"; find build/files/ja -maxdepth 3 -type f; exit 1; }
           python3.11 tools/lz_unpack.py build/files/ja/RUSTY build/unpacked/ja --copy-plain
           python3.11 tools/exepack.py build/unpacked/ja
-
-          if [[ -n "$en_image" ]]; then
+          if [[ -n "$en_image" && "$INCLUDE_ENGLISH" == "true" ]]; then
             mkdir -p build/files/base build/unpacked/base
             python3.11 tools/extract.py "$en_image" -o build/files/base
             python3.11 tools/lz_unpack.py build/files/base build/unpacked/base --copy-plain
             python3.11 tools/exepack.py build/unpacked/base
-            test -f build/unpacked/base/BOOT.COM || { echo "::error::English image extraction did not produce BOOT.COM"; find build/unpacked/base -maxdepth 2 -type f | head -80; exit 1; }
+            test -f build/unpacked/base/BOOT.COM || { echo "::error::English image extraction did not produce BOOT.COM"; exit 1; }
             echo "RUSTY_ENGLISH=ON" >> "$GITHUB_ENV"
           else
             echo "RUSTY_ENGLISH=OFF" >> "$GITHUB_ENV"
-            echo "Building Japanese-only modules."
           fi
           for required in BOOT.COM JO.EXE; do
             test -f "build/unpacked/ja/$required" || { echo "::error::Missing required extracted file $required"; exit 1; }
@@ -157,8 +152,7 @@ jobs:
           cmake --build SDL/build --parallel "$(nproc)"
           cmake --install SDL/build --prefix "$GITHUB_WORKSPACE/sdl3-install"
           SDL3_LIB="$(find "$GITHUB_WORKSPACE/sdl3-install" -name 'libSDL3.so*' -type f | head -n 1)"
-          test -n "$SDL3_LIB" || { echo "::error::Installed SDL3 shared library not found"; find sdl3-install -name 'libSDL3.so*' -print; exit 1; }
-          echo "SDL3 library: $SDL3_LIB"
+          test -n "$SDL3_LIB" || { echo "::error::Installed SDL3 shared library not found"; exit 1; }
           echo "SDL3_LIB=$SDL3_LIB" >> "$GITHUB_ENV"
 
       - name: Build Rusty ARM64 binary
@@ -167,7 +161,6 @@ jobs:
           set -euo pipefail
           python3.11 -m pip install --no-cache-dir uv
           uv sync --python 3.11
-          # PortMaster exit chord: hold Start + Select (SDL BACK) to quit cleanly.
           python3.11 - <<'PY'
           from pathlib import Path
           path = Path("runtime/display.c")
@@ -187,11 +180,8 @@ jobs:
           """
           if needle not in source:
               raise SystemExit("Could not locate SDL gamepad handler; refusing to apply exit-chord patch")
-          source = source.replace(needle, patch, 1)
-          path.write_text(source)
+          path.write_text(source.replace(needle, patch, 1))
           PY
-          # Upstream currently hardcodes -Werror and -O2. Keep warnings enabled,
-          # remove -Werror for portability, and use the RG35XX-H Cortex-A53 profile.
           sed -i 's/set(C_WARNINGS -Wall -Wextra -Werror)/set(C_WARNINGS -Wall -Wextra)/' CMakeLists.txt
           sed -i 's/set(C_OPTIONS -O2 ${C_WARNINGS})/set(C_OPTIONS -O3 ${C_WARNINGS})/' CMakeLists.txt
           cmake -S . -B build/rg35xx-h -G Ninja \
@@ -223,16 +213,13 @@ jobs:
           install -m 0644 packaging/licenses/SDL3-LICENSE.txt "$PKG/licenses/SDL3-LICENSE.txt"
           touch "$PKG/log.txt"
           cat > "$PKG/ASSETS_REQUIRED.txt" <<'EOF'
-          Rusty requires user-supplied game data. The build workflow does not place copyrighted game data in this ZIP.
-          Copy your own Rusty game disk image (.hdi/.d88/.hdm), FONT.ROM, and ym2608_adpcm_rom.bin into this package's roms/ folder.
-          The disk image is opened by the launcher; FONT.ROM and ym2608_adpcm_rom.bin are searched in roms/.
+          Rusty requires user-supplied game data. Copy your own Rusty game disk image (.hdi/.d88/.hdm), FONT.ROM, and ym2608_adpcm_rom.bin into roms/.
           EOF
           cp "$GITHUB_WORKSPACE/port-files/ports/unreleased/rusty/Rusty.sh" "$PKG/Rusty.sh"
           cp "$GITHUB_WORKSPACE/port-files/ports/unreleased/rusty/port.json" "$PKG/port.json"
           mkdir -p "$GITHUB_WORKSPACE/artifacts"
           cd "$PKG"
           zip -r "$GITHUB_WORKSPACE/artifacts/rusty-rg35xx-h.zip" .
-          echo "Package assembled; private game data intentionally excluded."
 
       - name: Upload install ZIP
         uses: actions/upload-artifact@v4
