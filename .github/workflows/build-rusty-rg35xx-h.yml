@@ -132,7 +132,27 @@ jobs:
             python3.11 tools/extract.py "$en_image" -o build/files/base
             python3.11 tools/lz_unpack.py build/files/base build/unpacked/base --copy-plain
             python3.11 tools/exepack.py build/unpacked/base
-            test -f build/unpacked/base/BOOT.COM || { echo "::error::English image extraction did not produce BOOT.COM"; exit 1; }
+            # Rusty has 18 English-specific recompilation modules. Validate every source before CMake.
+            english_files=(
+              BOOT.COM OP.COM JO.EXE GRPEGC.COM VISUAL.COM
+              STORY1.COM STORY2.COM STORY3.COM STORY4.COM STORY5.COM
+              STORY6.COM STORY7.COM STORY8.COM STORY9.COM STORY10.COM
+              ENEMY4.COM ENEMY9.COM ENEMY10.COM
+            )
+            for file in "${english_files[@]}"; do
+              test -f "build/unpacked/base/$file" || {
+                echo "::error::English extraction is missing $file"
+                find build/unpacked/base -maxdepth 2 -type f -printf '%P\\n' | sort
+                exit 1
+              }
+              test -f "build/files/base/$file" || {
+                echo "::error::English original file for hash/link table is missing: build/files/base/$file"
+                find build/files/base -maxdepth 2 -type f -printf '%P\\n' | sort
+                exit 1
+              }
+            done
+            echo "Validated ${#english_files[@]} English game files for native recompilation:"
+            printf '  %s\\n' "${english_files[@]}"
             echo "RUSTY_ENGLISH=ON" >> "$GITHUB_ENV"
           else
             echo "RUSTY_ENGLISH=OFF" >> "$GITHUB_ENV"
@@ -198,6 +218,7 @@ jobs:
           PY
           sed -i 's/set(C_WARNINGS -Wall -Wextra -Werror)/set(C_WARNINGS -Wall -Wextra)/' CMakeLists.txt
           sed -i 's/set(C_OPTIONS -O2 ${C_WARNINGS})/set(C_OPTIONS -O3 ${C_WARNINGS})/' CMakeLists.txt
+          echo "English translation build setting: RUSTY_ENGLISH=$RUSTY_ENGLISH"
           cmake -S . -B build/rg35xx-h -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/sdl3-install" \
@@ -207,7 +228,32 @@ jobs:
             -DRUSTY_RELEASE=ON \
             -DRUSTY_ENGLISH="$RUSTY_ENGLISH" \
             -DRUSTY_PYTHON="$PWD/.venv/bin/python"
+          if [[ "$RUSTY_ENGLISH" == "ON" ]]; then
+            modules=(boot op jo grpegc visual story1 story2 story3 story4 story5 story6 story7 story8 story9 story10 enemy4 enemy9 enemy10)
+            for module in "${modules[@]}"; do
+              grep -Fq "gen/en_${module}_gen.c" build/rg35xx-h/build.ninja || {
+                echo "::error::CMake did not include English module en_${module}"
+                exit 1
+              }
+            done
+            echo "CMake registered all ${#modules[@]} English modules for compilation."
+          else
+            echo "English translation modules are disabled for this build."
+          fi
           cmake --build build/rg35xx-h --target rusty --parallel "$(nproc)"
+          if [[ "$RUSTY_ENGLISH" == "ON" ]]; then
+            for module in "${modules[@]}"; do
+              test -s "build/rg35xx-h/gen/en_${module}_gen.c" || {
+                echo "::error::English module en_${module} was not generated"
+                exit 1
+              }
+              grep -Fq "&en_${module}_module" build/rg35xx-h/gen/link.c || {
+                echo "::error::English module en_${module} is missing from runtime link table"
+                exit 1
+              }
+            done
+            echo "Verified: all ${#modules[@]} English modules were generated and linked into Rusty."
+          fi
           test -x build/rg35xx-h/rusty
           file build/rg35xx-h/rusty
           readelf -h build/rg35xx-h/rusty | grep -E 'Class:|Machine:'
