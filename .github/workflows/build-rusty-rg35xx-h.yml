@@ -90,30 +90,40 @@ jobs:
           (("${#hdis[@]}" > 0)) || { echo "::error::No Rusty disk image (.hdi/.d88/.hdm) found in CrispyBuns/Rusty-Rom"; exit 1; }
           ja_image=""
           en_image=""
+          # Prefer the 46 OkuMen image when present. Rusty's upstream build still
+          # needs the Japanese original as its baseline for hashes and shared modules.
           for f in "${hdis[@]}"; do
             name="$(basename "$f" | tr '[:upper:]' '[:lower:]')"
-            if [[ "$name" == *"46 okum"* || "$name" == *"translation"* || "$name" == *"english"* ]]; then
-              en_image="$f"
+            if [[ "$name" == *"46 okum"* || "$name" == *"46okum"* || "$name" == *"translation"* || "$name" == *"english"* ]]; then
+              if [[ -z "$en_image" ]]; then en_image="$f"; fi
             elif [[ -z "$ja_image" ]]; then
               ja_image="$f"
             fi
           done
-          test -n "$ja_image" || { echo "::error::Could not identify the required Japanese original disk image"; exit 1; }
-          echo "Japanese disk image: $(basename "$ja_image")"
+
+          if [[ -n "$en_image" ]]; then
+            echo "Preferred game version: English 46 OkuMen translation"
+            echo "English image: $(basename "$en_image")"
+          else
+            echo "No English translation image found; falling back to Japanese original."
+          fi
+          test -n "$ja_image" || { echo "::error::Japanese original image is required as Rusty's baseline, even when building English translation modules"; exit 1; }
+          echo "Japanese baseline: $(basename "$ja_image")"
           python3.11 tools/extract.py "$ja_image" -o build/files/ja
-          test -d build/files/ja/RUSTY || { echo "::error::Extraction did not produce build/files/ja/RUSTY"; find build/files/ja -maxdepth 3 -type f; exit 1; }
+          test -d build/files/ja/RUSTY || { echo "::error::Japanese extraction did not produce build/files/ja/RUSTY"; find build/files/ja -maxdepth 3 -type f; exit 1; }
           python3.11 tools/lz_unpack.py build/files/ja/RUSTY build/unpacked/ja --copy-plain
           python3.11 tools/exepack.py build/unpacked/ja
-          if [[ "$INCLUDE_ENGLISH" == "true" && -n "$en_image" ]]; then
+
+          if [[ -n "$en_image" ]]; then
             mkdir -p build/files/base build/unpacked/base
-            echo "English disk image: $(basename "$en_image")"
             python3.11 tools/extract.py "$en_image" -o build/files/base
             python3.11 tools/lz_unpack.py build/files/base build/unpacked/base --copy-plain
             python3.11 tools/exepack.py build/unpacked/base
+            test -f build/unpacked/base/BOOT.COM || { echo "::error::English image extraction did not produce BOOT.COM"; find build/unpacked/base -maxdepth 2 -type f | head -80; exit 1; }
             echo "RUSTY_ENGLISH=ON" >> "$GITHUB_ENV"
           else
             echo "RUSTY_ENGLISH=OFF" >> "$GITHUB_ENV"
-            echo "No optional English image selected/found; Japanese modules only."
+            echo "Building Japanese-only modules."
           fi
           for required in BOOT.COM JO.EXE; do
             test -f "build/unpacked/ja/$required" || { echo "::error::Missing required extracted file $required"; exit 1; }
