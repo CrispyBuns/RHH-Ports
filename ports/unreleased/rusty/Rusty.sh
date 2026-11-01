@@ -32,11 +32,12 @@ echo "Game directory: $GAMEDIR"
 export LD_LIBRARY_PATH="$GAMEDIR/lib:${LD_LIBRARY_PATH:-}"
 export SDL_GAMECONTROLLERCONFIG="${sdl_controllerconfig:-}"
 
-# Keep all user-supplied PC-98 game data together in roms/pc98/.
-ROMDIR="$GAMEDIR/roms/pc98"
+# User-supplied PC-98 data lives in the Rusty recomp data folder.
+# PortMaster layout: /roms/ports/rusty/rusty_data/
+ROMDIR="$GAMEDIR/rusty_data"
 export RUSTY_ROM_DIR="$ROMDIR"
 
-echo "PC-98 data directory: $ROMDIR"
+echo "Rusty data directory: $ROMDIR"
 
 GAME="$GAMEDIR/rusty"
 if [ ! -x "$GAME" ]; then
@@ -46,8 +47,8 @@ if [ ! -x "$GAME" ]; then
 fi
 
 if [ ! -d "$ROMDIR" ]; then
-  echo "ERROR: PC-98 data directory missing: $ROMDIR"
-  echo "Create roms/pc98/ and place your Rusty game files there."
+  echo "ERROR: Rusty data directory missing: $ROMDIR"
+  echo "Create rusty_data/ inside the Rusty port folder and place your PC-98 files there."
   pm_finish 2>/dev/null || true
   exit 1
 fi
@@ -57,7 +58,7 @@ shopt -s nullglob
 images=("$ROMDIR"/*.hdi "$ROMDIR"/*.HDI "$ROMDIR"/*.d88 "$ROMDIR"/*.D88 "$ROMDIR"/*.hdm "$ROMDIR"/*.HDM)
 if [ "${#images[@]}" -eq 0 ]; then
   echo "ERROR: no .hdi/.d88/.hdm game disk image found in $ROMDIR"
-  echo "Required PC-98 files belong in roms/pc98/"
+  echo "Required PC-98 files belong in rusty_data/"
   pm_finish 2>/dev/null || true
   exit 1
 fi
