@@ -56,7 +56,14 @@ jobs:
             -DSHADERC_SKIP_EXAMPLES=ON \
             -DSHADERC_SKIP_COPYRIGHT_CHECK=ON
           cmake --build build --target glslc --parallel "$(nproc)"
-          install -m 0755 build/glslc/glslc /usr/local/bin/glslc
+          GLSLC_BIN="$(find build -type f -name glslc -executable -print -quit)"
+          if [[ -z "$GLSLC_BIN" ]]; then
+            echo "::error::glslc target built but executable was not found"
+            find build -maxdepth 5 -type f -perm /111 -print | sort | head -100
+            exit 1
+          fi
+          echo "Found glslc at: $GLSLC_BIN"
+          install -m 0755 "$GLSLC_BIN" /usr/local/bin/glslc
           glslc --version
 
       - name: Checkout Rusty source
