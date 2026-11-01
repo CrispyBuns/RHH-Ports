@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: karmasugar/rusty-bin
-          ref: ${{ needs.check-upstream.outputs.sha }}
+          ref: main
           path: rusty-src
 
       - name: Get upstream commit
@@ -110,7 +110,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: karmasugar/rusty-bin
-          ref: main
+          ref: ${{ needs.check-upstream.outputs.sha }}
           path: rusty-src
 
       - name: Checkout PortMaster package files
