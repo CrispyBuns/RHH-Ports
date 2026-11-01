@@ -217,17 +217,20 @@ jobs:
         run: |
           set -euo pipefail
           PKG="$GITHUB_WORKSPACE/package"
-          mkdir -p "$PKG/roms" "$PKG/lib" "$PKG/licenses"
-          install -m 0755 build/rg35xx-h/rusty "$PKG/rusty"
-          install -m 0644 "$SDL3_LIB" "$PKG/lib/libSDL3.so.0"
-          install -m 0644 LICENSE "$PKG/LICENSE"
-          install -m 0644 packaging/README.txt "$PKG/README.txt"
-          install -m 0644 packaging/portable.txt "$PKG/portable.txt"
-          install -m 0644 third_party/ymfm/LICENSE "$PKG/licenses/ymfm-LICENSE.txt"
-          install -m 0644 packaging/licenses/SDL3-LICENSE.txt "$PKG/licenses/SDL3-LICENSE.txt"
-          touch "$PKG/log.txt"
-          cat > "$PKG/ASSETS_REQUIRED.txt" <<'EOF'
-          Rusty requires user-supplied game data. Copy your own Rusty game disk image (.hdi/.d88/.hdm), FONT.ROM, and ym2608_adpcm_rom.bin into roms/.
+          PORTDIR="$PKG/rusty"
+          mkdir -p "$PORTDIR/roms" "$PORTDIR/lib" "$PORTDIR/licenses"
+          # PortMaster layout: launcher at /roms/ports/Rusty.sh;
+          # all port payload and user data stay in /roms/ports/rusty/.
+          install -m 0755 build/rg35xx-h/rusty "$PORTDIR/rusty"
+          install -m 0644 "$SDL3_LIB" "$PORTDIR/lib/libSDL3.so.0"
+          install -m 0644 LICENSE "$PORTDIR/LICENSE"
+          install -m 0644 packaging/README.txt "$PORTDIR/README.txt"
+          install -m 0644 packaging/portable.txt "$PORTDIR/portable.txt"
+          install -m 0644 third_party/ymfm/LICENSE "$PORTDIR/licenses/ymfm-LICENSE.txt"
+          install -m 0644 packaging/licenses/SDL3-LICENSE.txt "$PORTDIR/licenses/SDL3-LICENSE.txt"
+          touch "$PORTDIR/log.txt"
+          cat > "$PORTDIR/ASSETS_REQUIRED.txt" <<'EOF'
+          Rusty requires user-supplied game data. Copy your own Rusty game disk image (.hdi/.d88/.hdm), FONT.ROM, and ym2608_adpcm_rom.bin into this directory's roms/ folder.
           EOF
           cp "$GITHUB_WORKSPACE/port-files/ports/unreleased/rusty/Rusty.sh" "$PKG/Rusty.sh"
           cp "$GITHUB_WORKSPACE/port-files/ports/unreleased/rusty/port.json" "$PKG/port.json"
