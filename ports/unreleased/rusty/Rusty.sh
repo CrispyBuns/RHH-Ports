@@ -31,7 +31,12 @@ echo "Game directory: $GAMEDIR"
 
 export LD_LIBRARY_PATH="$GAMEDIR/lib:${LD_LIBRARY_PATH:-}"
 export SDL_GAMECONTROLLERCONFIG="${sdl_controllerconfig:-}"
-export RUSTY_ROM_DIR="$GAMEDIR/roms"
+
+# Keep all user-supplied PC-98 game data together in roms/pc98/.
+ROMDIR="$GAMEDIR/roms/pc98"
+export RUSTY_ROM_DIR="$ROMDIR"
+
+echo "PC-98 data directory: $ROMDIR"
 
 GAME="$GAMEDIR/rusty"
 if [ ! -x "$GAME" ]; then
@@ -40,23 +45,41 @@ if [ ! -x "$GAME" ]; then
   exit 1
 fi
 
+if [ ! -d "$ROMDIR" ]; then
+  echo "ERROR: PC-98 data directory missing: $ROMDIR"
+  echo "Create roms/pc98/ and place your Rusty game files there."
+  pm_finish 2>/dev/null || true
+  exit 1
+fi
+
 # Rusty needs a disk image as its launch argument. Never guess between multiple images.
 shopt -s nullglob
-images=("$GAMEDIR"/roms/*.hdi "$GAMEDIR"/roms/*.HDI "$GAMEDIR"/roms/*.d88 "$GAMEDIR"/roms/*.D88 "$GAMEDIR"/roms/*.hdm "$GAMEDIR"/roms/*.HDM)
+images=("$ROMDIR"/*.hdi "$ROMDIR"/*.HDI "$ROMDIR"/*.d88 "$ROMDIR"/*.D88 "$ROMDIR"/*.hdm "$ROMDIR"/*.HDM)
 if [ "${#images[@]}" -eq 0 ]; then
-  echo "ERROR: no .hdi/.d88/.hdm game disk image found in $GAMEDIR/roms"
-  echo "See ASSETS_REQUIRED.txt"
+  echo "ERROR: no .hdi/.d88/.hdm game disk image found in $ROMDIR"
+  echo "Required PC-98 files belong in roms/pc98/"
   pm_finish 2>/dev/null || true
   exit 1
 fi
 if [ "${#images[@]}" -gt 1 ]; then
-  echo "ERROR: multiple disk images found; leave only the desired Rusty disk image in roms/"
+  echo "ERROR: multiple disk images found in $ROMDIR; leave only the desired Rusty disk image"
   printf '  %s\n' "${images[@]}"
   pm_finish 2>/dev/null || true
   exit 1
 fi
 
+# These are also user-supplied PC-98 resources used by Rusty.
+for required in FONT.ROM ym2608_adpcm_rom.bin; do
+  if [ ! -f "$ROMDIR/$required" ]; then
+    echo "ERROR: missing $required in $ROMDIR"
+    pm_finish 2>/dev/null || true
+    exit 1
+  fi
+done
+
 echo "Disk image: ${images[0]}"
+echo "FONT.ROM: $ROMDIR/FONT.ROM"
+echo "YM2608 ADPCM ROM: $ROMDIR/ym2608_adpcm_rom.bin"
 echo "SDL3 backend: SDL2 shim (firmware SDL2)"
 echo "Renderer: Rusty default CPU renderer"
 "$GAME" "${images[0]}"
