@@ -1,0 +1,183 @@
+name: Build Rusty for RG35XX-H (KNULLI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_english:
+        description: "Build the optional 46 OkuMen English translation modules if present"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # ARM runner + Ubuntu 20.04 ARM64 container keeps the output ABI conservative.
+    runs-on: ubuntu-22.04-arm
+    container:
+      image: arm64v8/ubuntu:20.04
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      RUSTY_REPO: CrispyBuns/Rusty-Rom
+      SDL2_BACKEND_REPO: https://github.com/bmdhacks/SDL.git
+      SDL2_BACKEND_BRANCH: sdl2-backend
+
+    steps:
+      - name: Install Ubuntu 20.04 ARM64 build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl git build-essential pkg-config ninja-build \
+            python3 python3-pip python3-venv software-properties-common \
+            libegl1-mesa-dev libgles2-mesa-dev libgl1-mesa-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxinerama-dev \
+            libxi-dev libxfixes-dev libxss-dev libasound2-dev libpulse-dev \
+            libudev-dev libdbus-1-dev libibus-1.0-dev libwayland-dev \
+            libdecor-0-dev libusb-1.0-0-dev libdrm-dev libgbm-dev \
+            glslc
+          add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get update
+          apt-get install -y python3.11 python3.11-venv python3.11-dev
+          python3.11 -m pip install --no-cache-dir cmake==3.31.6 uv
+
+      - name: Checkout Rusty source
+        uses: actions/checkout@v4
+        with:
+          repository: karmasugar/rusty-bin
+          ref: main
+          path: rusty-src
+
+      - name: Fetch private game files
+        env:
+          RUSTY_TOKEN: ${{ secrets.RUSTY_TOKEN }}
+        run: |
+          test -n "$RUSTY_TOKEN" || { echo "::error::RUSTY_TOKEN secret is empty or unavailable"; exit 1; }
+          git clone --depth 1 "https://x-access-token:${RUSTY_TOKEN}@github.com/${RUSTY_REPO}.git" private-game-data
+          unset RUSTY_TOKEN
+          find private-game-data -type f -printf '%p\n' | sed -n '1,100p'
+
+      - name: Prepare Japanese and optional English game files
+        working-directory: rusty-src
+        env:
+          INCLUDE_ENGLISH: ${{ inputs.include_english }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/files/ja build/unpacked/ja
+          mapfile -d '' hdis < <(find ../private-game-data -type f \( -iname '*.hdi' -o -iname '*.d88' -o -iname '*.hdm' \) -print0)
+          (("${#hdis[@]}" > 0)) || { echo "::error::No Rusty disk image (.hdi/.d88/.hdm) found in CrispyBuns/Rusty-Rom"; exit 1; }
+          ja_image=""
+          en_image=""
+          for f in "${hdis[@]}"; do
+            name="$(basename "$f" | tr '[:upper:]' '[:lower:]')"
+            if [[ "$name" == *"46 okum"* || "$name" == *"translation"* || "$name" == *"english"* ]]; then
+              en_image="$f"
+            elif [[ -z "$ja_image" ]]; then
+              ja_image="$f"
+            fi
+          done
+          test -n "$ja_image" || { echo "::error::Could not identify the required Japanese original disk image"; exit 1; }
+          echo "Japanese disk image: $(basename "$ja_image")"
+          python3.11 tools/extract.py "$ja_image" -o build/files/ja
+          test -d build/files/ja/RUSTY || { echo "::error::Extraction did not produce build/files/ja/RUSTY"; find build/files/ja -maxdepth 3 -type f; exit 1; }
+          python3.11 tools/lz_unpack.py build/files/ja/RUSTY build/unpacked/ja --copy-plain
+          python3.11 tools/exepack.py build/unpacked/ja
+          if [[ "$INCLUDE_ENGLISH" == "true" && -n "$en_image" ]]; then
+            mkdir -p build/files/base build/unpacked/base
+            echo "English disk image: $(basename "$en_image")"
+            python3.11 tools/extract.py "$en_image" -o build/files/base
+            python3.11 tools/lz_unpack.py build/files/base build/unpacked/base --copy-plain
+            python3.11 tools/exepack.py build/unpacked/base
+            echo "RUSTY_ENGLISH=ON" >> "$GITHUB_ENV"
+          else
+            echo "RUSTY_ENGLISH=OFF" >> "$GITHUB_ENV"
+            echo "No optional English image selected/found; Japanese modules only."
+          fi
+          for required in BOOT.COM JO.EXE; do
+            test -f "build/unpacked/ja/$required" || { echo "::error::Missing required extracted file $required"; exit 1; }
+          done
+
+      - name: Build SDL3 SDL2-backend shim (no KMS/DRM)
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "$SDL2_BACKEND_BRANCH" "$SDL2_BACKEND_REPO" SDL
+          git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Cross.git SPIRV-Cross
+          cmake -S SDL -B SDL/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS="-O3 -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-flto" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-flto -Wl,--gc-sections" \
+            -DSDL_SDL2_BACKEND=ON \
+            -DSDL_SPIRV_CROSS_DIR="$GITHUB_WORKSPACE/SPIRV-Cross" \
+            -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_INSTALL=ON \
+            -DSDL_GPU=ON -DSDL_RENDER_GPU=ON \
+            -DSDL_VIDEO=ON -DSDL_AUDIO=ON -DSDL_JOYSTICK=ON \
+            -DSDL_HIDAPI=OFF -DSDL_VULKAN=OFF \
+            -DSDL_X11=OFF -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF \
+            -DSDL_PIPEWIRE=OFF -DSDL_PULSEAUDIO=OFF -DSDL_ALSA=OFF \
+            -DSDL_SNDIO=OFF -DSDL_OSS=OFF -DSDL_JACK=OFF \
+            -DSDL_OFFSCREEN=OFF -DSDL_DUMMYVIDEO=OFF \
+            -DSDL_DUMMYAUDIO=OFF -DSDL_DISKAUDIO=OFF
+          cmake --build SDL/build --parallel "$(nproc)"
+          cmake --install SDL/build --prefix "$GITHUB_WORKSPACE/sdl3-install"
+          test -f "$GITHUB_WORKSPACE/sdl3-install/lib/libSDL3.so.0" || find sdl3-install -name 'libSDL3.so*' -print
+
+      - name: Build Rusty ARM64 binary
+        working-directory: rusty-src
+        run: |
+          set -euo pipefail
+          python3.11 -m pip install --no-cache-dir uv
+          uv sync --python 3.11
+          # Upstream currently hardcodes -Werror and -O2. Keep warnings enabled,
+          # remove -Werror for portability, and use the RG35XX-H Cortex-A53 profile.
+          sed -i 's/set(C_WARNINGS -Wall -Wextra -Werror)/set(C_WARNINGS -Wall -Wextra)/' CMakeLists.txt
+          sed -i 's/set(C_OPTIONS -O2 ${C_WARNINGS})/set(C_OPTIONS -O3 ${C_WARNINGS})/' CMakeLists.txt
+          cmake -S . -B build/rg35xx-h -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/sdl3-install" \
+            -DCMAKE_C_FLAGS="-O3 -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
+            -DCMAKE_CXX_FLAGS="-O3 -mcpu=cortex-a53 -flto -ffunction-sections -fdata-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-flto -Wl,--gc-sections" \
+            -DRUSTY_RELEASE=ON \
+            -DRUSTY_ENGLISH="$RUSTY_ENGLISH" \
+            -DRUSTY_PYTHON="$PWD/.venv/bin/python"
+          cmake --build build/rg35xx-h --target rusty --parallel "$(nproc)"
+          test -x build/rg35xx-h/rusty
+          file build/rg35xx-h/rusty
+          readelf -h build/rg35xx-h/rusty | grep -E 'Class:|Machine:'
+
+      - name: Assemble PortMaster package
+        working-directory: rusty-src
+        run: |
+          set -euo pipefail
+          PKG="$GITHUB_WORKSPACE/package"
+          mkdir -p "$PKG/roms" "$PKG/lib" "$PKG/licenses"
+          install -m 0755 build/rg35xx-h/rusty "$PKG/rusty"
+          install -m 0644 "$GITHUB_WORKSPACE/sdl3-install/lib/libSDL3.so.0" "$PKG/lib/libSDL3.so.0"
+          install -m 0644 LICENSE "$PKG/LICENSE"
+          install -m 0644 packaging/README.txt "$PKG/README.txt"
+          install -m 0644 packaging/portable.txt "$PKG/portable.txt"
+          install -m 0644 third_party/ymfm/LICENSE "$PKG/licenses/ymfm-LICENSE.txt"
+          install -m 0644 packaging/licenses/SDL3-LICENSE.txt "$PKG/licenses/SDL3-LICENSE.txt"
+          touch "$PKG/log.txt"
+          cat > "$PKG/ASSETS_REQUIRED.txt" <<'EOF'
+          Rusty requires user-supplied game data. The build workflow does not place copyrighted game data in this ZIP.
+          Copy your own Rusty game disk image (.hdi/.d88/.hdm), FONT.ROM, and ym2608_adpcm_rom.bin into this package's roms/ folder.
+          The disk image is opened by the launcher; FONT.ROM and ym2608_adpcm_rom.bin are searched in roms/.
+          EOF
+          cp "$GITHUB_WORKSPACE/port-files/Rusty.sh" "$PKG/Rusty.sh"
+          cp "$GITHUB_WORKSPACE/port-files/port.json" "$PKG/port.json"
+          cd "$GITHUB_WORKSPACE"
+          zip -r rusty-rg35xx-h.zip package
+          mkdir -p artifacts
+          mv rusty-rg35xx-h.zip artifacts/
+          echo "Package assembled; private game data intentionally excluded."
+
+      - name: Upload install ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: rusty-rg35xx-h-portmaster
+          path: artifacts/rusty-rg35xx-h.zip
+          if-no-files-found: error
+          retention-days: 30
