@@ -144,7 +144,7 @@ jobs:
           from pathlib import Path
           path = Path("runtime/display.c")
           source = path.read_text()
-          needle = "static void handle_gamepad_button(const SDL_GamepadButtonEvent *event)\\n{\\n"
+          needle = "static void handle_gamepad_button(const SDL_GamepadButtonEvent *event)\n{\\n"
           patch = """static int quit_start_held;
           static int quit_select_held;
 
