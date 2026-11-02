@@ -27,7 +27,7 @@ GAMEDIR="/$directory/ports/megamanx-snes-recomp"
 GAME="$GAMEDIR/MegaManXSNESRecomp"
 LOG="$GAMEDIR/log.txt"
 
-mkdir -p "$GAMEDIR/userdata"
+mkdir -p "$GAMEDIR/userdata" "$GAMEDIR/pgo"
 cd "$GAMEDIR" || exit 1
 : > "$LOG"
 exec > >(tee -a "$LOG") 2>&1
