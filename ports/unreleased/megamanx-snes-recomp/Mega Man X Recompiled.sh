@@ -52,7 +52,12 @@ fi
 export SDL_RENDER_DRIVER=opengles2
 export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
 
-# Let PortMaster set up the platform environment and its exit handling.
+# Start GPTOKEYB for PortMaster hotkeys (Start + Select exit).
+$GPTOKEYB "$GAME" &
+GPTOKEYB_PID=$!
+echo "GPTOKEYB started: PID $GPTOKEYB_PID"
+
+# Let PortMaster set up the platform environment.
 pm_platform_helper "$GAME" || true
 
 set +e
