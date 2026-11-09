@@ -379,7 +379,7 @@ build_tinyxml2() {
     fi
     _build_dep tinyxml2 https://github.com/leethomason/tinyxml2.git \
         57ec94127bda7979282315b7d4b0059eeb6f3b5d \
-        -DBUILD_SHARED_LIBS=ON "$@"
+        -DBUILD_SHARED_LIBS=OFF "$@"
     if [[ -f "$cfg" ]]; then
         mv "$cfg" "$cfg.disabled"
     fi
