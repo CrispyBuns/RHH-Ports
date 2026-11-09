@@ -3424,12 +3424,12 @@
       "screenshot_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/harbourmasters/soh/soh/screenshot.png",
       "readme_url": "https://raw.githubusercontent.com/CrispyBuns/RHH-Ports/main/ports/released/harbourmasters/soh/soh/README.md",
       "download_url": "https://github.com/CrispyBuns/RHH-Ports/releases/download/ports-latest/soh.zip",
-      "date_updated": "2026-11-09T18:48",
+      "date_updated": "2026-11-09T18:54",
       "first_seen": "2025-11-11",
-      "md5": "10033014f69706a3cef345b30e1f4e6e",
-      "size": 60631734,
+      "md5": "23f13fc80b326361b041f3207d029d4e",
+      "size": 60631807,
       "lifetime_downloads": 489,
-      "last_commit": "[SOH] Match Jeod launcher cleanup and O2R handling"
+      "last_commit": "Document manual OoT O2R setup and GLES3 port"
     }
   },
   {
