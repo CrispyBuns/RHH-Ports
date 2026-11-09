@@ -26,8 +26,9 @@ build_opusfile
 build_fmt
 build_spdlog -DSPDLOG_FMT_EXTERNAL=ON
 
-# Match Jeod's GLES configuration. USE_OPENGLES selects the OpenGL ES backend;
-# the target resolves GLES/EGL from the handheld firmware at runtime.
+# Match Jeod's GLES configuration. In this fork's pinned libultraship,
+# USE_OPENGLES is explicitly the GLES3 backend (GLSL 300 ES). GLESv2/EGL
+# libraries are resolved from the handheld firmware at runtime.
 project_configure_and_build GenerateSohOtr \
     -DCMAKE_PREFIX_PATH=/usr/local \
     -DUSE_OPENGLES=1 \
