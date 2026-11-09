@@ -1,30 +1,40 @@
 ## Information
-Ship of Harkinian was built from GitHub Actions at the [RHH-Ports Autobuilder](https://github.com/JeodC/RHH-Ports).
+This port is built from [Arrenton/Shipwright](https://github.com/Arrenton/Shipwright/tree/leveled-ackbar), branch `leveled-ackbar` (Ackbar fork), rather than upstream HarbourMasters/Shipwright.
 
-## Compatibility
-TrimUI devices have a render bug where the PVR driver doesn't support NPOT (non-power-of-two) textures and therefore won't render them. The game is still playable, but several textures will be invisible. See a workaround by [modifying soh.o2r](https://github.com/Kenix3/libultraship/pull/1096)
+The build keeps the same PortMaster layout and runtime dependency staging used by Jeod's Ship of Harkinian port. It is compiled with `USE_OPENGLES=1` for the OpenGL ES renderer.
 
 ## Installation
-You need to provide your own roms. See the [Shipwright](https://github.com/HarbourMasters/Shipwright/blob/develop/docs/supportedHashes.json) repository for a list of supported rom hashes. Gather your roms and put them in the `ports/soh/baseroms` folder. 
+Generate your own `oot.o2r` from a legally obtained, supported Ocarina of Time ROM using this fork's asset extraction process. Copy the generated file to:
 
-Start the port, and on first run, your .o2r files will be generated from the roms you provide. Texture pack files and mods can be added to the `ports/soh/mods` folder. 
+```
+/roms/ports/soh/oot.o2r
+```
 
-Logs are recorded automatically as `ports/soh/log.txt`. Please provide a log if you report an issue. HarbourMasters is not affiliated with PortMaster or RHH-Ports and this distribution is not officially supported by them. *Please report an issue to the RHH-Ports repository before going to HarbourMasters!*
+If you also generate Master Quest, copy `oot-mq.o2r` into the same folder. These ROM-derived archives are user-provided and are not included in the port download.
+
+Alternatively, you can place supported raw `.z64`, `.n64`, or `.v64` ROM files in `ports/soh/baseroms`; the launcher temporarily stages them so SoH can generate the O2R archive on first run.
+
+Texture pack files and mods can be added to `ports/soh/mods`.
+
+Logs are recorded automatically as `ports/soh/log.txt`. Please provide a log if you report an issue. HarbourMasters is not affiliated with PortMaster or RHH-Ports and this distribution is not officially supported by them.
+
+## Runtime libraries
+The build recursively checks the ELF dependency chain and packages required non-system libraries in `ports/soh/libs`. SDL2 and the OpenGL ES/EGL driver libraries are supplied by the device firmware and are intentionally not bundled, avoiding conflicts with device-specific SDL2 builds. SDL2_net and the other required non-system dependencies are staged with the port.
 
 ## Menu Navigation
 Ship of Harkinian has built-in controller navigation for the imgui menu. Press `SELECT` to open the menu and use the `D-PAD` to choose a submenu, then press `A` to switch focus to it. Press `B` to back out of a submenu.
 
 ## Default Gameplay Controls
-The port uses SDL controller mapping and controls can be remapped from the imgui menu. For devices without a right analog stick, the gptk file allows for the `HOTKEY + ABXY` button combo to use the C-Buttons.
+The port uses SDL controller mapping and controls can be remapped from the imgui menu. For devices without a right analog stick, the GPTK file allows for the `HOTKEY + ABXY` button combo to use the C-Buttons.
 
 ## Mods
-You can find a ton of mods at [GameBanana](https://gamebanana.com/mods/games/16121?_aFilters%5BGeneric_Name%5D=contains%2C3ds&_sSort=Generic_MostDownloaded).  
+You can find mods at [GameBanana](https://gamebanana.com/mods/games/16121).
 
 ## Anchor
-This version of Ship of Harkinian includes Anchor support. You can modify your name and room id in the launchscript, and then connect to Anchor from the imgui menu. In the global public room, you can see other players as you play through independent save files. If you create your own room, you can play cooperatively.
+This version includes Anchor support. You can modify your name and room id in the launch script, then connect to Anchor from the imgui menu.
 
 ## Thanks
 Nintendo for the game  
-HarbourMasters for the native pc port  
-AkerHasReawakened for the cover art  
-IanSantos for the ghibli skybox mod  
+Harbour Masters for the native PC port  
+Arrenton for the Ackbar fork  
+Jeod and the RHH-Ports contributors for the PortMaster packaging and runtime-library approach
