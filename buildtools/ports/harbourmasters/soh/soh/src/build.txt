@@ -19,6 +19,9 @@ build_sdl2_net
 
 # Build the same runtime dependency set used by Jeod's SoH port.
 build_libzip
+# PNG support is required by Shipwright; build zlib first for libpng.
+build_zlib
+build_libpng
 # The Ackbar fork's libultraship CMake requires tinyxml2 at configure time.
 build_tinyxml2
 build_json
