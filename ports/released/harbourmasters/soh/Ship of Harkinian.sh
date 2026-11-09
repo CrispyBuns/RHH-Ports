@@ -85,7 +85,7 @@ edit_json() {
             sub(/"Name":[[:space:]]*"[^"]*"/, "\"Name\": \"" name "\"")
             sub(/"RoomId":[[:space:]]*"[^"]*"/, "\"RoomId\": \"" room "\"")
         }
-        depth { depth += gsub(/[{]/, "{") - gsub(/[}]/, "}") }
+        depth { depth += gsub(/[\{]/, "{") - gsub(/[\}]/, "}") }
         !depth && /"Anchor":[[:space:]]*[{]/ { depth = 1 }
         { print }
     ' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
@@ -94,7 +94,7 @@ edit_json() {
     if grep -q '"ControlNav"' "$CONFIG"; then
         sed -i 's/"ControlNav":[[:space:]]*[0-9]*/"ControlNav": 1/' "$CONFIG"
     else
-        sed -i '/"gSettings":[[:space:]]*{/a\"ControlNav": 1,' "$CONFIG"
+        sed -i '/"gSettings":[[:space:]]*{/a\\"ControlNav": 1,' "$CONFIG"
     fi
 }
 
@@ -110,11 +110,15 @@ stage_baseroms
 edit_json
 
 # Run the game
-$GPTOKEYB "soh.elf" -c "soh.gptk" & 
+$GPTOKEYB "soh.elf" -c "soh.gptk" &
 pm_platform_helper "soh.elf" >/dev/null
 ./soh.elf
+rc=$?
 
 # Cleanup
 unstage_baseroms
+if [ $rc -eq 137 ] && [ ! -f "$GAMEDIR/oot.o2r" ] && [ ! -f "$GAMEDIR/oot-mq.o2r" ]; then
+    pm_message "Ran out of memory generating oot.o2r. Generate it on a PC and copy it to ports/soh."
+fi
 rm -rf "$GAMEDIR/logs/"
 pm_finish
