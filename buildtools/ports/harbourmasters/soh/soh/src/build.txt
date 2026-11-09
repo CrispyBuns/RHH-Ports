@@ -1,19 +1,23 @@
 set -euo pipefail
 source /root/buildtools/ports/harbourmasters/lib_build.sh
 
-# Project clone — fail fast on bad REPO_URL/REF.
+# Build the Ackbar fork, not upstream HarbourMasters/Shipwright.
+# Pin both the repository and branch so autobuilds cannot silently fall back
+# to upstream or a release tag.
+export REPO_URL=https://github.com/Arrenton/Shipwright.git
+export REF=leveled-ackbar
 project_clone https://github.com/HarbourMasters/Shipwright.git
 
-# SDL2 from source so libzip/tinyxml2/opus/etc link against modern SDL2 at
-# build time. We do NOT ship libSDL2-2.0.so.0 — every supported device
-# already provides one, often with device-specific patches. Shipping ours
-# via LD_LIBRARY_PATH would override those patches.
+# SDL2 from source so the project links against modern SDL2 headers/libraries
+# at build time. Do NOT ship libSDL2-2.0.so.0: PortMaster devices provide their
+# own SDL2 build, often with device-specific patches.
 build_sdl2
 
-# SDL2_net is required by BUILD_REMOTE_CONTROL (anchor multiplayer). Devices
-# do NOT reliably provide libSDL2_net-2.0.so.0 so we ship our build.
+# Anchor multiplayer requires SDL2_net, which is not reliably installed on
+# target devices, so it is included in the staged runtime libraries.
 build_sdl2_net
 
+# Build the same runtime dependency set used by Jeod's SoH port.
 build_libzip
 build_json
 build_bzip2
@@ -22,6 +26,8 @@ build_opusfile
 build_fmt
 build_spdlog -DSPDLOG_FMT_EXTERNAL=ON
 
+# Match Jeod's GLES configuration. USE_OPENGLES selects the OpenGL ES backend;
+# the target resolves GLES/EGL from the handheld firmware at runtime.
 project_configure_and_build GenerateSohOtr \
     -DCMAKE_PREFIX_PATH=/usr/local \
     -DUSE_OPENGLES=1 \
@@ -29,4 +35,6 @@ project_configure_and_build GenerateSohOtr \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-Release} \
     -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc"
 
+# Recursively stage every non-device DT_NEEDED library and verify the full
+# dependency closure before the port ZIP is assembled.
 stage_libs soh/soh.elf
