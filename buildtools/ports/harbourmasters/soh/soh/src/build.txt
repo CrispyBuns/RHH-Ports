@@ -19,6 +19,8 @@ build_sdl2_net
 
 # Build the same runtime dependency set used by Jeod's SoH port.
 build_libzip
+# The Ackbar fork's libultraship CMake requires tinyxml2 at configure time.
+build_tinyxml2
 build_json
 build_bzip2
 build_opus
