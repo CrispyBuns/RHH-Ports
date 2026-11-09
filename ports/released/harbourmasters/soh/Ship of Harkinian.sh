@@ -85,7 +85,7 @@ edit_json() {
             sub(/"Name":[[:space:]]*"[^"]*"/, "\"Name\": \"" name "\"")
             sub(/"RoomId":[[:space:]]*"[^"]*"/, "\"RoomId\": \"" room "\"")
         }
-        depth { depth += gsub(/[\{]/, "{") - gsub(/[\}]/, "}") }
+        depth { depth += gsub(/[{]/, "{") - gsub(/[}]/, "}") }
         !depth && /"Anchor":[[:space:]]*[{]/ { depth = 1 }
         { print }
     ' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
@@ -94,7 +94,7 @@ edit_json() {
     if grep -q '"ControlNav"' "$CONFIG"; then
         sed -i 's/"ControlNav":[[:space:]]*[0-9]*/"ControlNav": 1/' "$CONFIG"
     else
-        sed -i '/"gSettings":[[:space:]]*{/a\\"ControlNav": 1,' "$CONFIG"
+        sed -i '/"gSettings":[[:space:]]*{/a\"ControlNav": 1,' "$CONFIG"
     fi
 }
 
@@ -110,7 +110,7 @@ stage_baseroms
 edit_json
 
 # Run the game
-$GPTOKEYB "soh.elf" -c "soh.gptk" &
+$GPTOKEYB "soh.elf" -c "soh.gptk" & 
 pm_platform_helper "soh.elf" >/dev/null
 ./soh.elf
 rc=$?
