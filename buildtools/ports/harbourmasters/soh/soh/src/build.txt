@@ -36,6 +36,8 @@ build_spdlog -DSPDLOG_FMT_EXTERNAL=ON
 # libraries are resolved from the handheld firmware at runtime.
 project_configure_and_build GenerateSohOtr \
     -DCMAKE_PREFIX_PATH=/usr/local \
+    -DPNG_PNG_INCLUDE_DIR=/usr/local/include/libpng16 \
+    -DPNG_LIBRARY=/usr/local/lib/libpng16.so \
     -DUSE_OPENGLES=1 \
     -DBUILD_REMOTE_CONTROL=1 \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-Release} \
