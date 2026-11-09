@@ -78,8 +78,8 @@
       "target_dirs": [
         "ports/released/harbourmasters/soh/soh"
       ],
-      "upstream_repo": "HarbourMasters/Shipwright",
-      "track": "release",
+      "upstream_repo": "Arrenton/Shipwright",
+      "track": "branch",
       "commit_prefix": "SOH",
       "artifacts": [
         "soh.elf",
@@ -87,7 +87,8 @@
         "gamecontrollerdb.txt",
         "libs",
         "assets.zip"
-      ]
+      ],
+      "upstream_branch": "leveled-ackbar"
     },
     "soh2": {
       "port_dir": "buildtools/ports/harbourmasters/soh2/soh2",
