@@ -357,6 +357,29 @@ build_libzip() {
         "$@"
 }
 
+# zlib: libpng uses zlib for PNG compression/decompression.
+build_zlib() {
+    _build_dep zlib https://github.com/madler/zlib.git v1.3.1 \\
+        -DBUILD_SHARED_LIBS=ON \\
+        -DZLIB_BUILD_TESTING=OFF \\
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \\
+        "$@"
+}
+
+# libpng: Shipwright's CMake configuration requires PNG headers and library.
+# Build shared so stage_libs can bundle libpng and its zlib dependency.
+build_libpng() {
+    _build_dep libpng https://github.com/pnggroup/libpng.git v1.6.50 \\
+        -DPNG_SHARED=ON \\
+        -DPNG_STATIC=OFF \\
+        -DPNG_TESTS=OFF \\
+        -DPNG_TOOLS=OFF \\
+        -DPNG_FRAMEWORK=OFF \\
+        -DCMAKE_PREFIX_PATH=/usr/local \\
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \\
+        "$@"
+}
+
 build_json() {
     _build_dep json https://github.com/nlohmann/json.git \
         f3dc4684b40a124cabc8554967c2cd8db54f15dd \
