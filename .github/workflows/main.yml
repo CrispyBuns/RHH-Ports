@@ -154,7 +154,7 @@ jobs:
             Z3R-Beta.sh z3r-beta
 
       - name: Upload PortMaster auto-install artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Z3R-Beta-RG35XX-H-AutoInstall
           path: Z3R-Beta-RG35XX-H-AutoInstall.zip
