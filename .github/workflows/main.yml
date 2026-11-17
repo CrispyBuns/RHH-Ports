@@ -141,12 +141,37 @@ jobs:
         run: |
           set -eu
 
-          apt-get install -y gh
+          TAG="z3r-beta-build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          ZIP="Z3R-Beta-RG35XX-H-AutoInstall.zip"
+          API="https://api.github.com/repos/$REPOSITORY"
 
-          TAG="z3r-beta-build-${GITHUB_RUN_NUMBER}"
+          echo "Creating release: $TAG"
 
-          gh release create "$TAG" \
-            Z3R-Beta-RG35XX-H-AutoInstall.zip \
-            --repo "$REPOSITORY" \
-            --title "Z3R-Beta RG35XX-H Build ${GITHUB_RUN_NUMBER}" \
-            --notes "ARM64 Cortex-A53 PortMaster auto-install package."
+          RELEASE_RESPONSE=$(curl -fsSL \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$API/releases" \
+            -d "{
+              \"tag_name\": \"$TAG\",
+              \"name\": \"Z3R-Beta RG35XX-H Build ${GITHUB_RUN_NUMBER}\",
+              \"body\": \"ARM64 Cortex-A53 PortMaster auto-install package.\",
+              \"draft\": false,
+              \"prerelease\": false
+            }")
+
+          UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | python3 -c \
+            'import json,sys; print(json.load(sys.stdin)["upload_url"].split("{")[0])')
+
+          echo "Uploading $ZIP..."
+
+          curl -fsSL \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/zip" \
+            --data-binary "@$ZIP" \
+            "$UPLOAD_URL?name=$ZIP"
+
+          echo "Release published successfully."
