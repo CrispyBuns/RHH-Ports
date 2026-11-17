@@ -84,12 +84,11 @@ jobs:
         run: |
           set -eu
 
-          # Explicit RG35XX-H / Cortex-A53 release profile.
-          # -DARM defines the project's ARM build macro.
-          # Opus is separately compiled with -fno-fast-math by the Makefile
-          # because its NaN/Inf checks are incompatible with fast-math.
-          export RG35XXXH_CFLAGS="-O3 -DARM -mcpu=cortex-a53 -mtune=cortex-a53 -ffast-math -flto=auto"
-          export RG35XXXH_LDFLAGS="-flto=auto"
+          # RG35XX-H / Cortex-A53 optimized release profile.
+          # -mcpu selects both the A53 instruction set and CPU tuning.
+          # Opus keeps its Makefile -fno-fast-math override for NaN/Inf checks.
+          export RG35XXXH_CFLAGS="-O3 -DARM -mcpu=cortex-a53 -ffast-math -flto -fomit-frame-pointer"
+          export RG35XXXH_LDFLAGS="-flto"
 
           echo "Cortex-A53 CFLAGS: $RG35XXXH_CFLAGS"
           echo "Linker flags: $RG35XXXH_LDFLAGS"
@@ -133,7 +132,7 @@ jobs:
 
           Architecture: ARM64 / AArch64
           CPU target: Cortex-A53
-          Optimization: -O3 -DARM -mcpu=cortex-a53 -mtune=cortex-a53 -ffast-math -flto=auto
+          Optimization: -O3 -DARM -mcpu=cortex-a53 -ffast-math -flto -fomit-frame-pointer
           Build userspace: Ubuntu 20.04 ARM64 (glibc 2.31)
 
           Supply your own legally obtained game data.
