@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -133,45 +133,10 @@ jobs:
             "$GITHUB_WORKSPACE/Z3R-Beta-RG35XX-H-AutoInstall.zip" \
             Z3R-Beta.sh z3r-beta
 
-      - name: Publish GitHub Release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -eu
-
-          TAG="z3r-beta-build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
-          ZIP="Z3R-Beta-RG35XX-H-AutoInstall.zip"
-          API="https://api.github.com/repos/$REPOSITORY"
-
-          echo "Creating release: $TAG"
-
-          RELEASE_RESPONSE=$(curl -fsSL \
-            -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "$API/releases" \
-            -d "{
-              \"tag_name\": \"$TAG\",
-              \"name\": \"Z3R-Beta RG35XX-H Build ${GITHUB_RUN_NUMBER}\",
-              \"body\": \"ARM64 Cortex-A53 PortMaster auto-install package.\",
-              \"draft\": false,
-              \"prerelease\": false
-            }")
-
-          UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | python3 -c \
-            'import json,sys; print(json.load(sys.stdin)["upload_url"].split("{")[0])')
-
-          echo "Uploading $ZIP..."
-
-          curl -fsSL \
-            -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -H "Content-Type: application/zip" \
-            --data-binary "@$ZIP" \
-            "$UPLOAD_URL?name=$ZIP"
-
-          echo "Release published successfully."
+      - name: Upload PortMaster auto-install artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Z3R-Beta-RG35XX-H-AutoInstall
+          path: Z3R-Beta-RG35XX-H-AutoInstall.zip
+          if-no-files-found: error
+          retention-days: 30
