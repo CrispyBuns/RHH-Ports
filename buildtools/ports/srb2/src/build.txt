@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Cloning upstream SRB2 master..."
+git clone --depth 1 --single-branch --branch master --recurse-submodules \
+    https://github.com/STJr/SRB2.git srb2-src
+
+SRB2_SHA=$(git -C srb2-src rev-parse HEAD)
+echo "Building STJr/SRB2 master at ${SRB2_SHA}"
+
+# The H700 is Cortex-A53. Tune for that actual target CPU, not the ARM64
+# GitHub runner's CPU. Release mode supplies -O3/-DNDEBUG; IPO enables LTO.
+# PGO is intentionally disabled: no -fprofile-generate/use or profile mode.
+CFLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -ffunction-sections -fdata-sections -fno-plt -fomit-frame-pointer"
+CXXFLAGS_RELEASE="$CFLAGS_RELEASE"
+LDFLAGS_RELEASE="-Wl,--gc-sections -Wl,--as-needed -static-libstdc++ -static-libgcc"
+
+cmake -S srb2-src -B srb2-build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="$PWD/srb2-stage" \
+    -DCMAKE_C_COMPILER=gcc \
+    -DCMAKE_CXX_COMPILER=g++ \
+    -DCMAKE_C_FLAGS_RELEASE="$CFLAGS_RELEASE" \
+    -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS_RELEASE" \
+    -DCMAKE_EXE_LINKER_FLAGS_RELEASE="$LDFLAGS_RELEASE" \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+    -DSRB2_CONFIG_HWRENDER=OFF \
+    -DSRB2_CONFIG_USE_GME=ON \
+    -DSRB2_CONFIG_STATIC_STDLIB=OFF \
+    -DSRB2_CONFIG_DEV_BUILD=OFF \
+    -DSRB2_CONFIG_EXECINFO=ON
+
+cmake --build srb2-build --target SRB2SDL2 --parallel "$(nproc)"
+cmake --install srb2-build
+
+if [[ ! -x srb2-stage/lsdlsrb2 ]]; then
+    echo "ERROR: expected installed executable srb2-stage/lsdlsrb2 was not produced." >&2
+    find srb2-build/bin srb2-stage -maxdepth 2 -type f -print 2>/dev/null || true
+    exit 1
+fi
+
+install -m 0755 srb2-stage/lsdlsrb2 ./lsdlsrb2
+strip --strip-unneeded ./lsdlsrb2
+
+echo "SRB2 build complete:"
+file ./lsdlsrb2
+readelf -h ./lsdlsrb2 | grep -E 'Class:|Machine:'
+echo "Dynamic dependencies:"
+ldd ./lsdlsrb2 || true
