@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SRCDIR="$1"
+DESTDIR="$2"
+
+install -D -m 0755 "$SRCDIR/lsdlsrb2" "$DESTDIR/lsdlsrb2"
+
+echo "SRB2 standalone ARM64 executable packaged."
