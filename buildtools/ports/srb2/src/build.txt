@@ -8,13 +8,19 @@ git clone --depth 1 --single-branch --branch master --recurse-submodules \
 SRB2_SHA=$(git -C srb2-src rev-parse HEAD)
 echo "Building STJr/SRB2 master at ${SRB2_SHA}"
 
+# The PortMaster make variables SDL=1, NOHW=1 and NOUPX=1 are represented
+# by this upstream CMake build as follows:
+#   SDL=1  -> build the SDL2 target (SRB2SDL2; SDL is required by this target)
+#   NOHW=1 -> SRB2_CONFIG_HWRENDER=OFF (software renderer)
+#   NOUPX=1 -> no UPX invocation; keep the executable uncompressed
+#
 # H700 uses Cortex-A53 cores. Tune for the target handheld, never the runner.
 # Fast-math is explicitly enabled at the user's request. SRB2's core gameplay
 # simulation is predominantly fixed-point; validate gameplay/audio on device.
-# LTO is enabled; PGO is intentionally disabled.
-CFLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -ffast-math -fno-math-errno -fno-trapping-math -fno-semantic-interposition -ffunction-sections -fdata-sections -fno-plt -fomit-frame-pointer"
+# LTO is explicitly enabled in compile/link flags and CMake IPO. PGO is off.
+CFLAGS_RELEASE="-O3 -DNDEBUG -mcpu=cortex-a53 -ffast-math -fno-math-errno -fno-trapping-math -fno-semantic-interposition -ffunction-sections -fdata-sections -fno-plt -fomit-frame-pointer -flto"
 CXXFLAGS_RELEASE="$CFLAGS_RELEASE"
-LDFLAGS_RELEASE="-Wl,--gc-sections -Wl,--as-needed -Wl,-O1"
+LDFLAGS_RELEASE="-flto -Wl,--gc-sections -Wl,--as-needed -Wl,-O1"
 
 cmake -S srb2-src -B srb2-build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
