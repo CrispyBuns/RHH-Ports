@@ -204,6 +204,19 @@
         "ChaotixRecompiled",
         "libs"
       ]
+    },
+    "srb2": {
+      "port_dir": "buildtools/ports/srb2",
+      "target_dirs": [
+        "ports/released/srb2/srb2"
+      ],
+      "upstream_repo": "STJr/SRB2",
+      "upstream_branch": "master",
+      "commit_prefix": "SRB2",
+      "artifacts": [
+        "lsdlsrb2"
+      ],
+      "base": "self"
     }
   },
   "runtimes": {
